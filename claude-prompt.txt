@@ -1,0 +1,43 @@
+Hello, I am in the role of designer and developer of a website for a real estate agency. They are offering residential properties - appartaments and houses, as well building plots. They are operating in Sofia, Bulgaria.
+
+I want to build something different compared to the other agencies, where when you enter (my) feeling is that you see only - "who we are", "which appartaments are available" and basic stuff. And also they are all the same. See the examples below.
+
+Examples:
+- https://elitebuild.bg/
+- https://balkanikahomes.eu
+- https://bld.bg/bg
+
+At the end all real estate agencies are offering the same thing, but my goal with this website is that when a new customer enters it, he or she has to see something different, something more than an appartaments or building plots. The first impression is important to me and I imagine the following concept:
+At the beginning - a question "what are you looking for?". Then there are three choices - appartaments/house, building plot, just watching. Choice appartament and building plot are forwarding to a mini presentation and the third choice is lead to the main website.
+
+The presentation for the appartament and houses contains of:
+slide 1 - people sitting around a table discussing what the client needs and on the table are different peaces of paper and a laptop showing properties
+slide 2 - 2 people one of the agency with a costume and the other one wearing casual clothes walking through a properties looking around.
+slide 3 - papers for the purchase are organized from the agent
+slide 4 - client recieves the key
+slide 5 - if you need that call us
+
+The presentation for the building plot:
+slide 1 - people sitting around a table discussing what the client needs and on the table are different peaces of paper and a laptop showing maps and blueprints
+slide 2 - 2 people one of the agency with a costume and the other one wearing casual clothes are next to a car, and in front of them is a green lawn. The camera is behind them, the agent is describing that this green lawn has everything for the idea of the client.
+slide 3 - the agent is parking the car in front of the authorities to enter for processing the papers of the client
+slide 4 - agency is organizing the building process, the agent is walking with the client through the construction site
+slide 5 - celebrating the success of the ready building
+slide 6 - the agents of the company are offering the build appartament/houses of the client to a clients, they are selling them
+slide 7 - "if you need that call us"
+
+they have to be "scrollytelling" organized or One-page / Parallax made
+
+Style: Black and white comic book art, indie graphic novel style, clean ink line art.
+Background: Not pure white, but an off-white, cream, or vintage paper texture background (#eae5d9).
+Color Palette: Strictly monochrome, high contrast black ink drawings with no colored elements, subtle ink washing for shadows.
+Aesthetics: Hand-drawn look, expressive characters, dynamic panels with bold black borders. For web integration, the illustrations must have clear space/areas designed for embedded text bubbles and narrative caption boxes without cluttering the main action.
+
+Main website
+- who we are
+- our achievments
+- what we offer
+- properties - map of the city of Sofia and surroundings with pins where are the properties
+- contacts
+
+what do you think about this idea, what can I make better. How should I design it and develop the website?

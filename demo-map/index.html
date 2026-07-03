@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Брокерски подход — карта демо</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eae5d9;
+    --ink: #141414;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; font-family: 'Patrick Hand', cursive; }
+  #map { position: absolute; inset: 0; background: var(--paper); }
+
+  /* paper grain over everything, non-interactive */
+  .grain {
+    position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: .35;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.32 0 0 0 0 0.30 0 0 0 0 0.26 0 0 0 0.10 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .comic-box {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  header.comic-box {
+    position: absolute; z-index: 20; top: 18px; left: 50%; transform: translateX(-50%);
+    padding: 8px 22px 6px; text-align: center; max-width: min(92vw, 640px);
+  }
+  header h1 { font-family: 'Caveat', cursive; font-size: 30px; letter-spacing: 1px; color: var(--ink); line-height: 1; }
+  header p { font-size: 15px; color: #444; }
+
+  aside {
+    position: absolute; z-index: 20; left: 18px; top: 110px; width: 285px;
+    max-height: calc(100% - 200px); overflow-y: auto; padding: 12px;
+  }
+  aside h2 { font-family: 'Caveat', cursive; font-size: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
+  .card {
+    border: 2px solid var(--ink); padding: 8px 10px; margin-bottom: 10px; cursor: pointer;
+    background: #f2eee3; transition: transform .1s, box-shadow .1s;
+  }
+  .card:hover { transform: translate(-2px,-2px); box-shadow: 3px 3px 0 var(--ink); }
+  .card .t { font-size: 18px; font-weight: bold; }
+  .card .d { font-size: 15px; color: #333; display: flex; justify-content: space-between; }
+  .card .tag { display: inline-block; font-size: 12px; border: 1.5px solid var(--ink); padding: 0 6px; margin-top: 3px; background: var(--paper); }
+
+  .legend {
+    position: absolute; z-index: 20; right: 18px; bottom: 34px; padding: 10px 14px; font-size: 15px;
+  }
+  .legend div { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .sw { width: 22px; height: 15px; border: 2px solid var(--ink); flex: none; }
+  .sw.b { background: var(--ink); }
+  .sw.g { background: #d6cfbe; }
+  .sw.p { border-style: dashed; background: repeating-linear-gradient(45deg, transparent 0 4px, #14141455 4px 6px); }
+  .sw.a { border-radius: 50%; border-style: dotted; background: #14141422; }
+
+  .hint { position: absolute; z-index: 20; left: 18px; bottom: 34px; padding: 6px 12px; font-size: 14px; color:#333; }
+
+  #tint {
+    position: absolute; z-index: 20; right: 18px; top: 110px; padding: 8px 16px;
+    font-family: 'Patrick Hand', cursive; font-size: 17px; cursor: pointer;
+    background: var(--paper); color: var(--ink);
+  }
+  #tint:hover { transform: translate(-2px,-2px); box-shadow: 7px 7px 0 var(--ink); }
+  #tint.on { background: var(--ink); color: var(--paper); }
+
+  /* comic popups */
+  .maplibregl-popup-content {
+    font-family: 'Patrick Hand', cursive; background: var(--paper);
+    border: 3px solid var(--ink); border-radius: 0; box-shadow: 5px 5px 0 var(--ink);
+    padding: 10px 14px; min-width: 200px;
+  }
+  .maplibregl-popup-tip { border-top-color: var(--ink) !important; }
+  .pop-t { font-family: 'Caveat', cursive; font-size: 22px; line-height: 1.1; }
+  .pop-d { font-size: 16px; margin: 4px 0; }
+  .pop-a {
+    display: inline-block; margin-top: 4px; font-size: 15px; color: var(--paper);
+    background: var(--ink); padding: 2px 10px; text-decoration: none;
+  }
+  .maplibregl-popup-close-button { font-size: 20px; color: var(--ink); }
+
+  @media (max-width: 720px) {
+    aside { display: none; }
+    header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="grain"></div>
+
+<header class="comic-box">
+  <h1>Брокерски подход — имотите ни в София</h1>
+  <p>демо: черните сгради са имоти за продажба — кликни върху тях</p>
+</header>
+
+<aside class="comic-box">
+  <h2>Имоти</h2>
+  <div id="cards"></div>
+</aside>
+
+<div class="legend comic-box">
+  <div><span class="sw b"></span> имот за продажба</div>
+  <div><span class="sw g"></span> градът (скица)</div>
+  <div><span class="sw p"></span> парцел</div>
+  <div><span class="sw a"></span> приблизителна локация</div>
+</div>
+
+<div class="hint comic-box">влачи с десен бутон / Ctrl за завъртане в 3D</div>
+<button id="tint" class="comic-box">🖌 ръчно оцветяване</button>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const PAPER = '#eae5d9', INK = '#141414';
+
+// rectangle building footprint: center lon/lat, width/depth in meters
+function rect(lon, lat, w, d) {
+  const dx = w / 2 / (111320 * Math.cos(lat * Math.PI / 180));
+  const dy = d / 2 / 110540;
+  return [[[lon-dx,lat-dy],[lon+dx,lat-dy],[lon+dx,lat+dy],[lon-dx,lat+dy],[lon-dx,lat-dy]]];
+}
+// polygon from meter offsets [x,y] around a center — for real blueprint footprints
+function poly(lon, lat, pts) {
+  const mx = 1 / (111320 * Math.cos(lat * Math.PI / 180)), my = 1 / 110540;
+  const ring = pts.map(([x, y]) => [lon + x * mx, lat + y * my]);
+  ring.push(ring[0]);
+  return [ring];
+}
+function circle(lon, lat, rMeters, n = 48) {
+  const ring = [];
+  for (let i = 0; i <= n; i++) {
+    const a = 2 * Math.PI * i / n;
+    ring.push([
+      lon + Math.cos(a) * rMeters / (111320 * Math.cos(lat * Math.PI / 180)),
+      lat + Math.sin(a) * rMeters / 110540
+    ]);
+  }
+  return [ring];
+}
+
+const LISTINGS = [
+  { id: 1, kind: 'exact', title: 'Тристаен в Лозенец', price: '185 000 €', area: '96 м²',
+    lon: 23.3247, lat: 42.6749, h: 46, w: 34, d: 22,
+    view: { zoom: 15.6, pitch: 58, bearing: -20 } },
+  { id: 2, kind: 'exact', title: 'Двустаен до НДК', price: '142 000 €', area: '68 м²',
+    lon: 23.3186, lat: 42.6847, h: 38, w: 28, d: 24,
+    view: { zoom: 15.6, pitch: 58, bearing: 15 } },
+  { id: 3, kind: 'exact', title: 'Мезонет в Изток', price: '230 000 €', area: '140 м²',
+    lon: 23.3498, lat: 42.6704,
+    // "blueprint" footprint: L-shaped wing + corner tower + set-back penthouse
+    parts: [
+      { pts: [[-22,-9],[18,-9],[18,6],[-22,6]], base: 0, height: 18 },          // long wing
+      { pts: [[-22,6],[-7,6],[-7,26],[-22,26]], base: 0, height: 18 },          // short wing (L)
+      { pts: [[2,6],[18,6],[18,22],[2,22]], base: 0, height: 46 },              // tower
+      { pts: [[5,9],[15,9],[15,19],[5,19]], base: 46, height: 54 },             // penthouse setback
+    ],
+    view: { zoom: 16.2, pitch: 60, bearing: -35 } },
+  { id: 4, kind: 'plot', title: 'Парцел в Панчарево', price: '95 000 €', area: '1200 м²',
+    lon: 23.4025, lat: 42.5936, pw: 120, pd: 95,
+    view: { zoom: 15.2, pitch: 40, bearing: 0 } },
+  { id: 5, kind: 'approx', title: 'Тристаен в Иван Вазов', price: '176 000 €', area: '92 м²',
+    lon: 23.3134, lat: 42.6789, r: 220,
+    note: 'точният адрес — при контакт',
+    view: { zoom: 14.8, pitch: 50, bearing: 0 } },
+];
+
+const buildingsGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'exact').flatMap(l =>
+  (l.parts ?? [{ pts: null, base: 0, height: l.h }]).map(p => ({
+    type: 'Feature',
+    properties: { id: l.id, height: p.height, base: p.base },
+    geometry: { type: 'Polygon',
+      coordinates: p.pts ? poly(l.lon, l.lat, p.pts) : rect(l.lon, l.lat, l.w, l.d) }
+  }))
+)};
+const plotsGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'plot').map(l => ({
+  type: 'Feature', properties: { id: l.id },
+  geometry: { type: 'Polygon', coordinates: rect(l.lon, l.lat, l.pw, l.pd) }
+}))};
+const approxGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'approx').map(l => ({
+  type: 'Feature', properties: { id: l.id },
+  geometry: { type: 'Polygon', coordinates: circle(l.lon, l.lat, l.r) }
+}))};
+const labelsGJ = { type: 'FeatureCollection', features: LISTINGS.map(l => ({
+  type: 'Feature', properties: { id: l.id, label: l.price },
+  geometry: { type: 'Point', coordinates: [l.lon, l.lat] }
+}))};
+
+const map = new maplibregl.Map({
+  container: 'map',
+  center: [23.327, 42.675],
+  zoom: 13.6, pitch: 55, bearing: -17,
+  maxPitch: 70,
+  attributionControl: { compact: true },
+  style: {
+    version: 8,
+    glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    sources: {
+      omt: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+      listings: { type: 'geojson', data: buildingsGJ },
+      plots: { type: 'geojson', data: plotsGJ },
+      approx: { type: 'geojson', data: approxGJ },
+      labels: { type: 'geojson', data: labelsGJ },
+    },
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': PAPER } },
+      { id: 'landuse-green', type: 'fill', source: 'omt', 'source-layer': 'park',
+        paint: { 'fill-color': '#dcd6c3', 'fill-opacity': .8 } },
+      { id: 'landcover', type: 'fill', source: 'omt', 'source-layer': 'landcover',
+        filter: ['in', ['get','class'], ['literal',['grass','wood','forest']]],
+        paint: { 'fill-color': '#ded8c6', 'fill-opacity': .6 } },
+      { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water',
+        paint: { 'fill-color': '#cfc8b4' } },
+      { id: 'waterway', type: 'line', source: 'omt', 'source-layer': 'waterway',
+        paint: { 'line-color': '#c2bba7', 'line-width': 2 } },
+
+      // roads — ink lines
+      { id: 'road-minor', type: 'line', source: 'omt', 'source-layer': 'transportation',
+        filter: ['in', ['get','class'], ['literal',['minor','service','tertiary','path']]],
+        paint: { 'line-color': '#8f8a7a',
+          'line-width': ['interpolate',['linear'],['zoom'], 12, .3, 16, 2.2] } },
+      { id: 'road-major', type: 'line', source: 'omt', 'source-layer': 'transportation',
+        filter: ['in', ['get','class'], ['literal',['motorway','trunk','primary','secondary']]],
+        paint: { 'line-color': '#2c2a25',
+          'line-width': ['interpolate',['linear'],['zoom'], 11, .8, 16, 5] } },
+      { id: 'rail', type: 'line', source: 'omt', 'source-layer': 'transportation',
+        filter: ['==', ['get','class'], 'rail'],
+        paint: { 'line-color': '#6a655a', 'line-width': 1.2, 'line-dasharray': [4,3] } },
+
+      // the city: pale sketched volumes
+      { id: 'city-3d', type: 'fill-extrusion', source: 'omt', 'source-layer': 'building', minzoom: 13,
+        paint: {
+          'fill-extrusion-color': '#d6cfbe',
+          'fill-extrusion-height': ['coalesce', ['get','render_height'], 8],
+          'fill-extrusion-base': ['coalesce', ['get','render_min_height'], 0],
+          'fill-extrusion-opacity': .72
+        } },
+
+      // plots: hatched + dashed ink outline
+      { id: 'plot-fill', type: 'fill', source: 'plots',
+        paint: { 'fill-pattern': 'hatch', 'fill-opacity': .9 } },
+      { id: 'plot-line', type: 'line', source: 'plots',
+        paint: { 'line-color': INK, 'line-width': 3, 'line-dasharray': [2,1.6] } },
+
+      // approximate location: dotted ink circle
+      { id: 'approx-fill', type: 'fill', source: 'approx',
+        paint: { 'fill-color': INK, 'fill-opacity': .08 } },
+      { id: 'approx-line', type: 'line', source: 'approx',
+        paint: { 'line-color': INK, 'line-width': 2.5, 'line-dasharray': [.5,1.8] } },
+
+      // listings: tall black ink buildings
+      { id: 'listings-3d', type: 'fill-extrusion', source: 'listings',
+        paint: {
+          'fill-extrusion-color': INK,
+          'fill-extrusion-height': ['get','height'],
+          'fill-extrusion-base': ['coalesce', ['get','base'], 0],
+          'fill-extrusion-opacity': .94
+        } },
+
+      // neighbourhood names
+      { id: 'place-labels', type: 'symbol', source: 'omt', 'source-layer': 'place',
+        filter: ['in', ['get','class'], ['literal',['suburb','neighbourhood','quarter']]],
+        layout: { 'text-field': ['coalesce',['get','name:bg'],['get','name']],
+          'text-font': ['Noto Sans Italic'], 'text-size': 15, 'text-letter-spacing': .08 },
+        paint: { 'text-color': '#3d3a33', 'text-halo-color': PAPER, 'text-halo-width': 1.6 } },
+
+      // price tags floating above listings
+      { id: 'price-labels', type: 'symbol', source: 'labels',
+        layout: { 'text-field': ['get','label'], 'text-font': ['Noto Sans Bold'],
+          'text-size': 14, 'text-offset': [0, -2.6], 'text-allow-overlap': true },
+        paint: { 'text-color': INK, 'text-halo-color': PAPER, 'text-halo-width': 2 } },
+    ]
+  }
+});
+
+// hand-drawn diagonal hatch pattern for plots
+map.on('load', () => {
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const x = c.getContext('2d');
+  x.strokeStyle = 'rgba(20,20,20,.45)'; x.lineWidth = 1.6;
+  for (const o of [-16, 0, 16]) {
+    x.beginPath(); x.moveTo(o, 16); x.lineTo(o + 16, 0); x.stroke();
+  }
+  map.addImage('hatch', x.getImageData(0, 0, 16, 16), { pixelRatio: 1 });
+});
+
+function popupHTML(l) {
+  return `<div class="pop-t">${l.title}</div>
+    <div class="pop-d">${l.price} &nbsp;·&nbsp; ${l.area}${l.note ? `<br><em>${l.note}</em>` : ''}</div>
+    <a class="pop-a" href="#" onclick="return false">Виж имота →</a>`;
+}
+let popup;
+function showListing(l, fly) {
+  if (fly) map.flyTo({ center: [l.lon, l.lat], ...l.view, duration: 1800, essential: true });
+  if (popup) popup.remove();
+  popup = new maplibregl.Popup({ offset: 14, maxWidth: '280px' })
+    .setLngLat([l.lon, l.lat]).setHTML(popupHTML(l)).addTo(map);
+}
+
+for (const layer of ['listings-3d', 'plot-fill', 'approx-fill']) {
+  map.on('click', layer, e => {
+    const l = LISTINGS.find(x => x.id === e.features[0].properties.id);
+    if (l) showListing(l, false);
+  });
+  map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+}
+
+// hand-tint toggle: monochrome ink vs. muted watercolor washes over the same linework
+const TINTS = {
+  mono: { park: '#dcd6c3', landcover: '#ded8c6', water: '#cfc8b4', waterway: '#c2bba7' },
+  tinted: { park: '#bdcba2', landcover: '#c9d3ae', water: '#b3c4c2', waterway: '#a7bcb9' },
+};
+let tinted = false;
+document.getElementById('tint').addEventListener('click', e => {
+  tinted = !tinted;
+  e.target.classList.toggle('on', tinted);
+  const t = tinted ? TINTS.tinted : TINTS.mono;
+  map.setPaintProperty('landuse-green', 'fill-color', t.park);
+  map.setPaintProperty('landcover', 'fill-color', t.landcover);
+  map.setPaintProperty('water', 'fill-color', t.water);
+  map.setPaintProperty('waterway', 'line-color', t.waterway);
+});
+
+// sidebar cards
+const kindTag = { exact: 'апартамент', plot: 'парцел', approx: 'апартамент · приблизително' };
+document.getElementById('cards').innerHTML = LISTINGS.map(l => `
+  <div class="card" data-id="${l.id}">
+    <div class="t">${l.title}</div>
+    <div class="d"><span>${l.area}</span><b>${l.price}</b></div>
+    <span class="tag">${kindTag[l.kind]}</span>
+  </div>`).join('');
+document.getElementById('cards').addEventListener('click', e => {
+  const card = e.target.closest('.card');
+  if (card) showListing(LISTINGS.find(l => l.id === +card.dataset.id), true);
+});
+</script>
+</body>
+</html>

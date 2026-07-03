@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Брокерски подход — концепция за уебсайт</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Neucha&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #eae5d9; --paper2: #f2eee3; --ink: #141414; --dim: #45413a; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-snap-type: y mandatory; }
+  body {
+    font-family: 'Neucha', cursive; color: var(--ink); background: var(--paper);
+    line-height: 1.45;
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 50; pointer-events: none; opacity: .3;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.32 0 0 0 0 0.30 0 0 0 0 0.26 0 0 0 0.10 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  section {
+    min-height: 100vh; scroll-snap-align: start; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 56px 24px;
+  }
+  .frame {
+    width: min(880px, 94vw); background: var(--paper2);
+    border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--ink);
+    padding: 40px 48px;
+  }
+  .kicker {
+    display: inline-block; font-size: 15px; letter-spacing: 2px; text-transform: uppercase;
+    border: 2px solid var(--ink); padding: 1px 12px; background: var(--paper);
+    margin-bottom: 14px;
+  }
+  h1 { font-family: 'Caveat', cursive; font-size: clamp(44px, 8vw, 84px); line-height: 1; }
+  h2 { font-family: 'Caveat', cursive; font-size: clamp(32px, 5vw, 52px); line-height: 1.05; margin-bottom: 18px; }
+  h3 { font-family: 'Caveat', cursive; font-size: 26px; margin-bottom: 6px; }
+  p, li { font-size: 20px; color: var(--dim); }
+  strong { color: var(--ink); }
+  ul { list-style: none; }
+  ul li { padding-left: 26px; position: relative; margin: 7px 0; }
+  ul li::before { content: '✒'; position: absolute; left: 0; top: 0; }
+  .hr { border: none; border-top: 2px dashed var(--ink); margin: 22px 0; opacity: .5; }
+
+  .bubble {
+    display: inline-block; background: var(--paper); border: 3px solid var(--ink);
+    border-radius: 24px; padding: 8px 22px; font-size: 22px; position: relative; margin-top: 16px;
+  }
+  .bubble::after {
+    content: ''; position: absolute; left: 34px; bottom: -14px;
+    border: 8px solid transparent; border-top-color: var(--ink); border-left-color: var(--ink);
+  }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } .frame { padding: 26px 22px; } }
+
+  .panelrow { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .panel {
+    flex: 1 1 100px; min-width: 96px; border: 2.5px solid var(--ink); background: var(--paper);
+    padding: 8px 9px; font-size: 15.5px; color: var(--dim); text-align: center;
+  }
+  .panel b { display: block; font-family: 'Caveat', cursive; font-size: 22px; color: var(--ink); line-height: 1; margin-bottom: 4px; }
+
+  .swatches { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+  .swatch { text-align: center; font-size: 14px; }
+  .swatch i { display: block; width: 74px; height: 46px; border: 2.5px solid var(--ink); margin-bottom: 4px; }
+
+  .num {
+    position: absolute; top: 22px; right: 28px; font-family: 'Caveat', cursive;
+    font-size: 24px; color: var(--dim);
+  }
+  .scrollhint {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; color: var(--dim); animation: bob 1.6s infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translate(-50%,0); } 50% { transform: translate(-50%,7px); } }
+
+  /* tiny "ink city" sketch */
+  .citysketch { display: block; margin: 16px auto 0; max-width: 100%; }
+
+  @media print {
+    html { scroll-snap-type: none; }
+    body::after, .scrollhint { display: none; }
+    section { min-height: auto; page-break-after: always; padding: 30px 10px; }
+    .frame { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1. Заглавие -->
+<section>
+  <div class="frame" style="text-align:center">
+    <span class="kicker">Предложение за обсъждане</span>
+    <h1>Брокерски подход</h1>
+    <p style="font-size:24px; margin-top:10px">Концепция за уебсайт, който не прилича на нито един друг сайт за имоти в София</p>
+    <div class="bubble">Разгледайте и ни кажете какво мислите!</div>
+  </div>
+  <div class="scrollhint">▼ превъртете надолу</div>
+</section>
+
+<!-- 2. Проблемът -->
+<section>
+  <span class="num">2 / 8</span>
+  <div class="frame">
+    <span class="kicker">Проблемът</span>
+    <h2>Всички сайтове за имоти изглеждат еднакво</h2>
+    <p>„Кои сме ние“ … списък с обяви … контакти. Снимки на фасади, син филтър, едни и същи думи. Когато клиентът разглежда пет агенции, на петата вече не помни коя коя е.</p>
+    <hr class="hr">
+    <p><strong>А всички агенции предлагат едно и също.</strong> Разликата не е в обявите — тя е в това <strong>как се работи с вас</strong>. Точно това никой сайт не показва.</p>
+  </div>
+</section>
+
+<!-- 3. Идеята -->
+<section>
+  <span class="num">3 / 8</span>
+  <div class="frame">
+    <span class="kicker">Идеята</span>
+    <h2>Продаваме не обяви, а доверие — с рисувана история</h2>
+    <p>Сайтът посреща посетителя с един въпрос:</p>
+    <div class="bubble" style="margin-bottom:20px">Какво търсите?</div>
+    <div class="panelrow">
+      <div class="panel"><b>Апартамент / къща</b>кратка комикс-история как стигате до ключа</div>
+      <div class="panel"><b>Парцел</b>историята от идеята до готовата сграда</div>
+      <div class="panel"><b>Просто разглеждам</b>направо към сайта и имотите</div>
+    </div>
+    <p style="margin-top:16px">Първото впечатление не е поредната обява, а <strong>разказ, в който клиентът разпознава себе си</strong>.</p>
+  </div>
+</section>
+
+<!-- 4. Историите -->
+<section>
+  <span class="num">4 / 8</span>
+  <div class="frame">
+    <span class="kicker">Историите</span>
+    <h2>Два комикса — клиентът е героят, брокерът е водачът</h2>
+    <h3>Апартамент и къща — 5 кадъра</h3>
+    <div class="panelrow">
+      <div class="panel"><b>1</b>разговор на масата — какво търсите</div>
+      <div class="panel"><b>2</b>оглед на имота заедно</div>
+      <div class="panel"><b>3</b>документите — подредени от нас</div>
+      <div class="panel"><b>4</b>ключът е във вашата ръка</div>
+      <div class="panel"><b>5</b>„Ако това ви трябва — обадете се“</div>
+    </div>
+    <hr class="hr">
+    <h3>Парцел — 7 кадъра</h3>
+    <div class="panelrow">
+      <div class="panel"><b>1</b>идеята — карти и чертежи на масата</div>
+      <div class="panel"><b>2</b>на терена — „тук има всичко за вашата идея“</div>
+      <div class="panel"><b>3</b>институциите — ние поемаме бумащината</div>
+      <div class="panel"><b>4</b>строежът — заедно на обекта</div>
+      <div class="panel"><b>5</b>готовата сграда — празникът</div>
+      <div class="panel"><b>6</b>ние продаваме построеното</div>
+      <div class="panel"><b>7</b>„Ако това ви трябва — обадете се“</div>
+    </div>
+    <p style="margin-top:14px">Историите се „разгръщат“ при превъртане (scrollytelling) и завършват с директна връзка: <strong>телефон, Viber, форма</strong>.</p>
+  </div>
+</section>
+
+<!-- 5. Стилът -->
+<section>
+  <span class="num">5 / 8</span>
+  <div class="frame">
+    <span class="kicker">Визуален стил</span>
+    <h2>Туш върху хартия</h2>
+    <p>Черно-бял комикс в стил „независим графичен роман“ — чиста линия, изразителни герои, смели черни рамки. Никакви стокови снимки.</p>
+    <div class="swatches">
+      <div class="swatch"><i style="background:#eae5d9"></i>хартия #eae5d9</div>
+      <div class="swatch"><i style="background:#141414"></i>туш</div>
+      <div class="swatch"><i style="background:#d6cfbe"></i>скица</div>
+      <div class="swatch"><i style="background:#bdcba2"></i>парк (лек колорит)</div>
+    </div>
+    <hr class="hr">
+    <ul>
+      <li>фонът никога не е чисто бял — крем, старинна хартия</li>
+      <li>строго монохромно в историите; лек „ръчен“ колорит само на картата</li>
+      <li>целият сайт живее в този стил — един визуален свят</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 6. Картата -->
+<section>
+  <span class="num">6 / 8</span>
+  <div class="frame">
+    <span class="kicker">Картата · работещо демо ✓</span>
+    <h2>„Мастилен град“ — София в 3D, като рисунка</h2>
+    <p>Не плоска карта с пинчета, а наклонена триизмерна София, нарисувана с туш: градът е бледа скица, а <strong>сградите с ваши имоти се издигат в плътно черно</strong> — кликваш и се отваря комикс-каре с цена и снимка.</p>
+    <svg class="citysketch" viewBox="0 0 640 190" width="640" aria-label="скица на картата">
+      <g stroke="#141414" fill="none" stroke-width="2">
+        <path d="M20 160 L620 160" stroke-width="3"/>
+        <path d="M60 160 L140 120 L560 120" opacity=".4"/>
+        <path d="M100 160 L180 135 L620 135" opacity=".3"/>
+      </g>
+      <g fill="#d6cfbe" stroke="#141414" stroke-width="1.5" opacity=".8">
+        <path d="M60 160 V130 l18 -8 v38 z"/><path d="M95 160 V125 l22 -8 v43 z"/>
+        <path d="M150 160 V135 l16 -6 v31 z"/><path d="M420 160 V128 l20 -8 v40 z"/>
+        <path d="M470 160 V138 l16 -6 v28 z"/><path d="M560 160 V132 l18 -7 v35 z"/>
+      </g>
+      <g fill="#141414">
+        <path d="M230 160 V70 l26 -12 v102 z"/>
+        <path d="M320 160 V95 l22 -10 v75 z"/>
+      </g>
+      <g font-family="Caveat, cursive" font-size="19" fill="#141414">
+        <text x="215" y="46">185 000 €</text>
+        <text x="308" y="72">142 000 €</text>
+      </g>
+      <path d="M505 158 l30 -14 34 8 -28 14 z" fill="none" stroke="#141414" stroke-width="2" stroke-dasharray="5 4"/>
+      <text x="500" y="185" font-family="Neucha, cursive" font-size="14" fill="#45413a">парцел — щрихован</text>
+      <text x="200" y="185" font-family="Neucha, cursive" font-size="14" fill="#45413a">имоти за продажба — в черно</text>
+    </svg>
+    <hr class="hr">
+    <ul>
+      <li>реални очертания на сградите — по чертеж или кадастрална скица</li>
+      <li>нови сгради: етаж по етаж — свободните в черно, продадените бледи</li>
+      <li>ако има 3D модел от архитекта — истинската архитектура върху картата</li>
+      <li>дискретност: имот без публичен адрес = пунктиран кръг „точният адрес — при контакт“</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 7. Структура -->
+<section>
+  <span class="num">7 / 8</span>
+  <div class="frame">
+    <span class="kicker">Сайтът</span>
+    <h2>Структура</h2>
+    <div class="cols">
+      <ul>
+        <li><strong>Начало</strong> — въпросът „Какво търсите?“ + трите пътя</li>
+        <li><strong>Кои сме ние</strong> — рисунки + реални снимки на екипа</li>
+        <li><strong>Постижения</strong> — числата, нарисувани в стила</li>
+      </ul>
+      <ul>
+        <li><strong>Какво предлагаме</strong> — покупка, продажба, парцели, строителство</li>
+        <li><strong>Имоти</strong> — картата + списък с филтри по квартал, цена, м²</li>
+        <li><strong>Контакти</strong> — телефон, Viber, форма</li>
+      </ul>
+    </div>
+    <hr class="hr">
+    <p>Технически: бърз, отличен за Google (всеки имот има собствена страница), работи безупречно на телефон, на български и английски.</p>
+  </div>
+</section>
+
+<!-- 8. Въпроси към вас -->
+<section>
+  <span class="num">8 / 8</span>
+  <div class="frame">
+    <span class="kicker">Вашето мнение</span>
+    <h2>Въпросите, на които търсим вашия отговор</h2>
+    <ul>
+      <li>Разпознавате ли агенцията си в този стил — смел, рисуван, различен?</li>
+      <li>Двете истории верни ли са на начина, по който наистина работите?</li>
+      <li>Кои имоти бихте искали да „се издигнат“ първи на картата?</li>
+      <li>Имате ли чертежи или 3D модели от инвеститори, които да покажем?</li>
+      <li>Реални снимки на екипа — готови ли сте да застанете до рисунките?</li>
+    </ul>
+    <hr class="hr">
+    <p><strong>Следваща стъпка:</strong> работещ прототип на историята „Апартамент“ — да я превъртите на екрана си, преди да се рисува финалното.</p>
+    <div class="bubble">Ако това ви допада — да поговорим!</div>
+  </div>
+</section>
+
+</body>
+</html>
