@@ -1,0 +1,222 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const achievements = [
+  { n: '12+', label: 'години опит' },
+  { n: '340+', label: 'сделки' },
+  { n: '95%', label: 'доволни клиенти' },
+  { n: '20', label: 'квартала в София' },
+];
+
+const services = [
+  'Покупка на апартамент или къща',
+  'Продажба на имот',
+  'Парцели и терени за строеж',
+  'Управление на строителния процес',
+];
+---
+
+<Layout title="Брокерски подход — недвижими имоти в София">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="frame comic-box">
+      <span class="kicker">София · имоти</span>
+      <h1>Какво търсите?</h1>
+      <div class="choices">
+        <a class="choice-card comic-box" href="/istoria/apartament" data-intent="apartment">
+          <h3>Апартамент / къща</h3>
+          <p>Кратка история как стигате до ключа</p>
+        </a>
+        <a class="choice-card comic-box" href="/istoria/parcel" data-intent="plot">
+          <h3>Парцел</h3>
+          <p>От идеята до готовата сграда</p>
+        </a>
+        <a class="choice-card comic-box" href="/imoti" data-intent="browse">
+          <h3>Просто разглеждам</h3>
+          <p>Направо към имотите</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Who we are -->
+  <section id="koi-sme-nie" class="section">
+    <div class="frame comic-box">
+      <span class="kicker">Кои сме ние</span>
+      <h2>Хората зад агенцията</h2>
+      <p>Работим с клиенти в София вече години наред — седим на масата с вас, обикаляме имотите заедно, подреждаме документите вместо вас.</p>
+      <div class="team-placeholder comic-box">
+        <!-- TODO: реални снимки на екипа -->
+        <p>тук ще застанат реални снимки на екипа</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Achievements -->
+  <section class="section">
+    <div class="frame comic-box">
+      <span class="kicker">Постижения</span>
+      <h2>Числата зад доверието</h2>
+      <div class="stats">
+        {achievements.map((a) => (
+          <div class="stat comic-box">
+            <b>{a.n}</b>
+            <span>{a.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- What we offer -->
+  <section class="section">
+    <div class="frame comic-box">
+      <span class="kicker">Какво предлагаме</span>
+      <h2>Услуги</h2>
+      <ul class="services">
+        {services.map((s) => <li>✒ {s}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- Properties teaser -->
+  <section class="section">
+    <div class="frame comic-box">
+      <span class="kicker">Имоти</span>
+      <h2>Мастилената карта на София</h2>
+      <p>Всеки имот за продажба се издига в плътно черно върху рисувана 3D карта на града — вижте къде точно и какво предлагаме.</p>
+      <a class="btn" href="/imoti">Разгледай картата →</a>
+    </div>
+  </section>
+
+  <!-- Contacts -->
+  <section id="kontakti" class="section">
+    <div class="frame comic-box">
+      <span class="kicker">Контакти</span>
+      <h2>Да поговорим</h2>
+      <p>
+        Телефон: <a href="tel:+359000000000">+359 00 000 0000</a><br />
+        Viber: <a href="viber://chat">+359 00 000 0000</a><br />
+        Офис: ул. „Примерна" 1, София
+        <!-- TODO: реален адрес и телефон -->
+      </p>
+      <form class="contact-form">
+        <input type="text" name="name" placeholder="Име" required />
+        <input type="tel" name="phone" placeholder="Телефон" required />
+        <textarea name="message" placeholder="Съобщение" rows="3"></textarea>
+        <button class="btn" type="submit">Изпрати</button>
+      </form>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  document.querySelectorAll('.choice-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const intent = card.dataset.intent;
+      if (intent) localStorage.setItem('bp_intent', intent);
+    });
+  });
+</script>
+
+<style>
+  .hero {
+    min-height: calc(100vh - 66px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .section {
+    padding: 60px 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .frame {
+    width: min(880px, 94vw);
+    padding: 40px 48px;
+  }
+  h1 {
+    font-size: clamp(44px, 8vw, 72px);
+    margin-bottom: 24px;
+  }
+  h2 {
+    font-size: clamp(30px, 5vw, 44px);
+    margin-bottom: 16px;
+  }
+  p {
+    font-size: 20px;
+    color: var(--dim);
+  }
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .choice-card {
+    display: block;
+    text-decoration: none;
+    color: var(--ink);
+    padding: 20px 18px;
+    background: var(--paper);
+    transition: transform .1s, box-shadow .1s;
+  }
+  .choice-card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 9px 9px 0 var(--ink);
+  }
+  .choice-card h3 { font-size: 26px; margin-bottom: 8px; }
+  .choice-card p { font-size: 17px; }
+
+  .team-placeholder {
+    margin-top: 20px;
+    padding: 40px;
+    text-align: center;
+    background: var(--paper);
+    color: var(--dim);
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .stat {
+    text-align: center;
+    padding: 18px 10px;
+    background: var(--paper);
+  }
+  .stat b { display: block; font-family: 'Caveat', cursive; font-size: 40px; line-height: 1; }
+  .stat span { font-size: 16px; color: var(--dim); }
+
+  .services li {
+    padding: 6px 0;
+    font-size: 20px;
+  }
+
+  .contact-form {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 360px;
+  }
+  .contact-form input,
+  .contact-form textarea {
+    font-family: 'Neucha', cursive;
+    font-size: 18px;
+    padding: 8px 12px;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .contact-form button {
+    align-self: flex-start;
+  }
+
+  @media (max-width: 700px) {
+    .choices { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .frame { padding: 26px 22px; }
+  }
+</style>

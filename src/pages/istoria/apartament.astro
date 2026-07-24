@@ -1,0 +1,42 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Апартамент — Брокерски подход">
+  <section class="section">
+    <div class="frame comic-box">
+      <span class="kicker">Историята · Апартамент и къща</span>
+      <h1>Как стигате до ключа</h1>
+      <p>Тук ще се разгърне комикс-историята в 5 кадъра — от разговора на масата до ключа във вашата ръка.</p>
+      <p class="note"><!-- TODO: scrollytelling прототип, GSAP ScrollTrigger, реални кадри (roadmap стъпка 4) -->В процес на изграждане.</p>
+      <a class="btn" href="/#kontakti">Обадете се →</a>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .section {
+    min-height: calc(100vh - 66px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+  .frame {
+    width: min(880px, 94vw);
+    padding: 40px 48px;
+  }
+  h1 {
+    font-family: 'Caveat', cursive;
+    font-size: clamp(36px, 6vw, 56px);
+    margin-bottom: 16px;
+  }
+  p {
+    font-size: 20px;
+    color: var(--dim);
+  }
+  .note {
+    margin: 14px 0 22px;
+    font-style: italic;
+  }
+</style>
