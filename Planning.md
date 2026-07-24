@@ -85,7 +85,8 @@ The comic doesn't just decorate the site — it *is* the pitch. Slides 1–4 of 
 - **Buildings with listings rise out of the sketch**: extruded taller, solid black ink, with floating price tags — exaggeration by *height*, not width (width would distort streets and confuse orientation).
 - Clicking a listing opens a **comic caption-box popup** (cream, 3px black border, offset shadow) with photo, price, m², link to the property page.
 - **Building plots** (no building to extrude): hand-hatched polygon with dashed ink border; flatter camera when zoomed out to the surroundings.
-- Landmark idea: small drawn illustrations as markers (Витоша, НДК, Александър Невски) so visitors orient instantly.
+- **Landmark buildings, implemented**: rather than flat drawn-icon markers (the original idea below), NDK and the Alexander Nevsky Cathedral are real stylized 3D volumes on the map (`demo-map/index.html`) — a MapLibre custom layer rendered with three.js, since MapLibre's native `fill-extrusion` can't produce curved/domed geometry. Simplified, low-poly, ink-outlined shapes (NDK: stacked tapering tiers + spire; Nevsky: cross-plan base + domed drum + taller bell tower + minor domes), always pale (`#d6cfbe`, same tone as the rest of the sketched city) — never black, since black stays reserved for listings. Not real architect models (rejected per the project's "stylized, not photorealistic" approach for orientation anchors); real glTF models remain reserved for showcase listing buildings per the tiers above.
+- Original landmark idea (superseded by the above for these two buildings, may still suit others): small drawn illustrations as markers (Витоша, НДК, Александър Невски) so visitors orient instantly.
 - Rejected alternative: a fully illustrated isometric map of the whole city — maximum charm but can't cover Sofia + surroundings, and every listing change means artwork changes. Kept only for neighborhood guide pages.
 
 ### Building fidelity — three levels
@@ -115,7 +116,7 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 
 | Concern | Choice | Why |
 |---|---|---|
-| Framework | **Astro** | Mostly static content, fast, excellent SEO out of the box; interactivity only where needed. Next.js would be overkill. |
+| Framework | **Astro** (scaffolded at repo root — `package.json`, `src/pages`, `src/layouts`, `src/components`) | Mostly static content, fast, excellent SEO out of the box; interactivity only where needed. Next.js would be overkill. |
 | Scrollytelling | **GSAP ScrollTrigger** (v1 can start with CSS `scroll-snap`) | Pinned scenes, panels reveal on scroll |
 | Map | **MapLibre GL + OpenFreeMap (OSM vector tiles)** | Free, no API key, fully custom "ink city" 3D style (see section 6); three.js custom layer for glTF showcase models |
 | Listings data | Astro content collections (markdown/JSON in repo) → headless CMS (Sanity/Directus) later | Tens of properties don't need a CMS on day one |
@@ -134,12 +135,12 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 
 ## 8. Roadmap
 
-1. ~~**Prototype the 3D ink map**~~ — ✅ done: `demo-map/index.html` (ink-styled 3D Sofia, black listing buildings with price tags, blueprint-shaped multi-part building, hatched plot, approximate-location circle, comic popups, sidebar list with fly-to, hand-tint toggle).
+1. ~~**Prototype the 3D ink map**~~ — ✅ done: `demo-map/index.html` (ink-styled 3D Sofia, black listing buildings with price tags, blueprint-shaped multi-part building, hatched plot, approximate-location circle, comic popups, sidebar list with fly-to, hand-tint toggle). Since extended with stylized 3D landmarks (NDK, Alexander Nevsky) — see §6.
 2. ~~**Client presentation**~~ — ✅ done: `presentation/` — 8-slide deck in Bulgarian, built in the project's own ink-on-paper aesthetic; sendable as `Brokerski-podhod-koncepcia.html` (interactive) or `Brokerski-podhod-koncepcia.pdf` (attachment-safe). Ends with five concrete feedback questions for the client (style fit, story accuracy, showcase properties, blueprints/3D models, team photos).
-3. **⏳ Awaiting client feedback** — send the presentation; the client's answers gate the art direction and which properties go on the map first.
+3. **⏳ Client feedback still pending** — presentation/GitHub Pages logistics were dropped; site build moved ahead anyway (steps 4-5 below are also still outstanding, picked up out of order).
 4. **Prototype the apartment story** — working scrollytelling page with placeholder panel sketches, real Bulgarian bubble text, GSAP scroll behavior, mobile fallback. Validate the concept in the browser before investing in final artwork.
 5. Lock the art direction: character sheets, one finished sample panel.
-6. Build the main site skeleton (hero with the three choices, sections, contacts).
-7. Properties: data model, list + filters, production map (port the demo into the site), property detail pages.
+6. ~~**Build the main site skeleton**~~ — ✅ done: real Astro project (not just static HTML) at the repo root, with the paper/ink/grain design system in `src/styles/global.css` + `src/layouts/Layout.astro`. Homepage (`src/pages/index.astro`) has all six sections from §5 (hero with the three choices + `localStorage` intent, who we are, achievements, services, properties teaser, contacts) with placeholder copy/content where real assets aren't ready yet. Stub routes exist at `/imoti`, `/istoria/apartament`, `/istoria/parcel`.
+7. Properties: data model, list + filters, production map (port the demo into the site), property detail pages. `/imoti` is currently a stub.
 8. Produce all ~12 final panels; wire up both presentations.
 9. Neighborhood guides, English version, polish, launch.

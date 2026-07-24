@@ -60,6 +60,7 @@ brokerski_podhod/
 - **Gotcha fixed once already:** the MapLibre global is `maplibregl`, not `maplibre`.
 - **Font gotcha:** the demo's UI uses Patrick Hand, which has **no Cyrillic** — Bulgarian text falls back to a generic cursive. The presentation uses **Neucha + Caveat, both with Cyrillic** — prefer those for any future on-brand UI.
 - In production, listing footprints should snap to real OSM building outlines (manual pick during listing entry).
+- **3D model file formats (landmarks/showcase buildings):** both glTF and FBX load fine via three.js (`GLTFLoader` / `FBXLoader`, both `three/addons/loaders/...`, same ES-module CDN setup already in `demo-map/index.html`). Key difference: **glTF is typically multi-file** — a `.gltf` JSON + a `.bin` geometry buffer + separate texture images (that's the shape of the sourced Nevsky model in `3d-models/nevsky/`) — while **FBX is normally a single self-contained binary file** that embeds geometry/materials and often textures too. Neither shape is wrong; it's just how each format packages things. **glTF's spec mandates real-world units (meters) and Y-up**, so calibration is predictable; **FBX units/axis convention vary by exporting tool** (cm vs m, Y-up vs Z-up), so an FBX import may need the same scale/position/rotation calibration pass done for Nevsky (see `NEVSKY_REAL_HEIGHT`/`NEVSKY_ROTATION_DEG`/`NEVSKY_OFFSET_X`/`NEVSKY_OFFSET_Z` constants in `demo-map/index.html`) — or more, if the axis convention differs.
 
 ## 6. The client presentation
 
