@@ -115,7 +115,18 @@
 <button id="tint" class="comic-box">🖌 ръчно оцветяване</button>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 const PAPER = '#eae5d9', INK = '#141414';
 
 // rectangle building footprint: center lon/lat, width/depth in meters
@@ -141,6 +152,100 @@ function circle(lon, lat, rMeters, n = 48) {
     ]);
   }
   return [ring];
+}
+
+// --- stylized 3D landmarks (NDK, Alexander Nevsky) — orientation anchors, not listings ---
+// pale like the rest of the sketched city (never black — black is reserved for listings)
+const LANDMARK_PALE = 0xd6cfbe;
+const landmarkMat = new THREE.MeshBasicMaterial({ color: LANDMARK_PALE, side: THREE.DoubleSide });
+const landmarkInkLine = new THREE.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: .85 });
+
+// low segment counts on purpose: EdgesGeometry then reads as intentional hand-drawn facets
+// instead of lat/long clutter (domes) or a barcode of near-parallel lines (smooth cylinders)
+function meshWithInk(geometry) {
+  const mesh = new THREE.Mesh(geometry, landmarkMat);
+  const edges = new THREE.EdgesGeometry(geometry, 15);
+  mesh.add(new THREE.LineSegments(edges, landmarkInkLine));
+  return mesh;
+}
+
+// NDK: stepped/tapering tiers (ziggurat massing) + thin spire
+function buildNDK() {
+  const group = new THREE.Group();
+  const tiers = [
+    { w: 90, h: 12, d: 70, dx: 0 },
+    { w: 65, h: 16, d: 50, dx: -4 },
+    { w: 46, h: 14, d: 34, dx: 3 },
+    { w: 30, h: 20, d: 22, dx: -2 },
+  ];
+  let baseY = 0;
+  for (const t of tiers) {
+    const mesh = meshWithInk(new THREE.BoxGeometry(t.w, t.h, t.d));
+    mesh.position.set(t.dx, baseY + t.h / 2, 0);
+    group.add(mesh);
+    baseY += t.h;
+  }
+  const spire = meshWithInk(new THREE.CylinderGeometry(1, 1.4, 12, 6));
+  spire.position.set(0, baseY + 6, 0);
+  group.add(spire);
+  return group;
+}
+
+// Alexander Nevsky Cathedral: real model (CC-BY-4.0, "Alexander Nevsky Cathedral – Sofia" by iwalk,
+// https://sketchfab.com/3d-models/alexander-nevsky-cathedral-sofia-d46c08dacb074203bb629503e7025292 —
+// attribution required, see the map's attribution control). Real height incl. bell tower ~50m.
+const NEVSKY_MODEL_URL = '../3d-models/nevsky/scene.gltf';
+const NEVSKY_REAL_HEIGHT = 80;
+// facing is off — the source model's heading is arbitrary. Tune this in degrees (0-360) and reload;
+// positive turns it clockwise looking straight down from above.
+const NEVSKY_ROTATION_DEG = -90;
+// true = keep the model's own real materials/textures ("default colors"); false = flat pale + ink
+// outlines to match the rest of the map (drops the ~21MB of source textures — see loadNevsky()).
+const NEVSKY_USE_ORIGINAL_MATERIALS = false;
+// nudge the model in meters if it's not sitting in the right spot — X is east(+)/west(-),
+// Z is south(+)/north(-) before the model matrix's rotation bakes it onto the real map.
+const NEVSKY_OFFSET_X = 10;
+const NEVSKY_OFFSET_Z = -30;
+
+async function loadNevsky() {
+  const gltf = await new GLTFLoader().loadAsync(NEVSKY_MODEL_URL);
+  const model = gltf.scene;
+
+  // rotate FIRST — centering below measures the bounding box in its current (post-rotation) pose,
+  // since rotation happens around the model's raw origin, not its visual center. Centering before
+  // rotating would leave it centered for the old heading and off-center after turning.
+  model.rotation.y = THREE.MathUtils.degToRad(NEVSKY_ROTATION_DEG);
+
+  // the source model's scale/origin are arbitrary — normalize to real-world meters, base on the
+  // ground (y=0), centered horizontally, so it drops into the same anchor/offset math as buildNDK()
+  const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+  model.scale.setScalar(NEVSKY_REAL_HEIGHT / size.y);
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= box.min.y;
+
+  if (!NEVSKY_USE_ORIGINAL_MATERIALS) {
+    // ink-style to match the rest of the map (also drops the ~21MB of source textures entirely):
+    // flat pale material + edge outlines, same as the procedural landmarks. Higher edge threshold
+    // than meshWithInk()'s 15° — real architectural detail at 15° would clutter into a wireframe.
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.material = landmarkMat;
+        const edges = new THREE.EdgesGeometry(child.geometry, 35);
+        child.add(new THREE.LineSegments(edges, landmarkInkLine));
+      }
+    });
+  }
+  return model;
+}
+
+// flat-earth meter offset from an anchor lon/lat — same convention as rect()/poly() above
+function meterOffsetFrom(anchorLon, anchorLat, lon, lat) {
+  const mx = 111320 * Math.cos(anchorLat * Math.PI / 180);
+  const my = 110540;
+  return [(lon - anchorLon) * mx, (lat - anchorLat) * my];
 }
 
 const LISTINGS = [
@@ -190,12 +295,66 @@ const labelsGJ = { type: 'FeatureCollection', features: LISTINGS.map(l => ({
   geometry: { type: 'Point', coordinates: [l.lon, l.lat] }
 }))};
 
+// landmarks: real-world anchor at NDK; Nevsky positioned as a meter offset from it (see meterOffsetFrom)
+const NDK_LONLAT = [23.3186, 42.6852];
+const NEVSKY_LONLAT = [23.3326, 42.6956];
+const [nevskyDx, nevskyDy] = meterOffsetFrom(NDK_LONLAT[0], NDK_LONLAT[1], NEVSKY_LONLAT[0], NEVSKY_LONLAT[1]);
+
+const landmarksLayer = {
+  id: 'landmarks-3d',
+  type: 'custom',
+  renderingMode: '3d',
+  onAdd(map, gl) {
+    this.camera = new THREE.Camera();
+    this.scene = new THREE.Scene();
+
+    // MeshBasicMaterial (the procedural landmarks' ink style) ignores lights entirely, so this is
+    // only for NEVSKY_USE_ORIGINAL_MATERIALS — its source materials are lit (PBR); with zero lights
+    // in the scene they'd render solid black instead of showing their real colors/textures.
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    sun.position.set(1, 2, 1);
+    this.scene.add(sun);
+
+    this.scene.add(buildNDK());
+
+    const anchorMerc = maplibregl.MercatorCoordinate.fromLngLat(NDK_LONLAT, 0);
+    const scale = anchorMerc.meterInMercatorCoordinateUnits();
+    // T * S * R (scale+rotate the model, then translate to the map anchor) — applied to a vertex
+    // that's rotate first, then scale, then translate; scale-then-rotate (T*R*S) would flip the
+    // "up" axis sign and bury the buildings below the visible ground.
+    this.modelMatrix = new THREE.Matrix4()
+      .makeTranslation(anchorMerc.x, anchorMerc.y, anchorMerc.z)
+      .multiply(new THREE.Matrix4().makeScale(scale, -scale, scale))
+      .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+
+    this.renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
+    this.renderer.autoClear = false;
+
+    // async: the real model loads after this layer is already added — one-shot repaint on arrival
+    // (not a per-frame triggerRepaint; the static-scene rule from the procedural version still holds)
+    loadNevsky().then((nevsky) => {
+      nevsky.position.x += nevskyDx + NEVSKY_OFFSET_X;
+      nevsky.position.z += -nevskyDy + NEVSKY_OFFSET_Z;
+      this.scene.add(nevsky);
+      map.triggerRepaint();
+    });
+  },
+  render(gl, matrix) {
+    this.camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix).multiply(this.modelMatrix);
+    this.renderer.resetState();
+    this.renderer.render(this.scene, this.camera);
+    // static scene, no animation — no triggerRepaint() here; MapLibre already re-renders on camera change
+  }
+};
+
 const map = new maplibregl.Map({
   container: 'map',
   center: [23.327, 42.675],
   zoom: 13.6, pitch: 55, bearing: -17,
   maxPitch: 70,
-  attributionControl: { compact: true },
+  attributionControl: { compact: true, customAttribution:
+    '"Alexander Nevsky Cathedral – Sofia" by <a href="https://sketchfab.com/iwalk" target="_blank">iwalk</a>, CC BY 4.0' },
   style: {
     version: 8,
     glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
@@ -232,7 +391,13 @@ const map = new maplibregl.Map({
         paint: { 'line-color': '#6a655a', 'line-width': 1.2, 'line-dasharray': [4,3] } },
 
       // the city: pale sketched volumes
+      // excludes the OSM building parts that sit almost exactly on Nevsky's real-world spot (an
+      // unrelated ~51m-tall stepped structure) so they don't visually clash with the real model
       { id: 'city-3d', type: 'fill-extrusion', source: 'omt', 'source-layer': 'building', minzoom: 13,
+        filter: ['!', ['in', ['id'], ['literal', [
+          1554477712, 3375916842, 3375803392, 3375803362, 3375803372,
+          3375803462, 3375803430, 3375803352, 3375803380, 3375803410
+        ]]]],
         paint: {
           'fill-extrusion-color': '#d6cfbe',
           'fill-extrusion-height': ['coalesce', ['get','render_height'], 8],
@@ -286,6 +451,8 @@ map.on('load', () => {
     x.beginPath(); x.moveTo(o, 16); x.lineTo(o + 16, 0); x.stroke();
   }
   map.addImage('hatch', x.getImageData(0, 0, 16, 16), { pixelRatio: 1 });
+
+  map.addLayer(landmarksLayer, 'listings-3d');
 });
 
 function popupHTML(l) {
@@ -315,16 +482,21 @@ const TINTS = {
   mono: { park: '#dcd6c3', landcover: '#ded8c6', water: '#cfc8b4', waterway: '#c2bba7' },
   tinted: { park: '#bdcba2', landcover: '#c9d3ae', water: '#b3c4c2', waterway: '#a7bcb9' },
 };
-let tinted = false;
-document.getElementById('tint').addEventListener('click', e => {
-  tinted = !tinted;
-  e.target.classList.toggle('on', tinted);
+let tinted = true; // default on
+function applyTint() {
+  const btn = document.getElementById('tint');
+  btn.classList.toggle('on', tinted);
   const t = tinted ? TINTS.tinted : TINTS.mono;
   map.setPaintProperty('landuse-green', 'fill-color', t.park);
   map.setPaintProperty('landcover', 'fill-color', t.landcover);
   map.setPaintProperty('water', 'fill-color', t.water);
   map.setPaintProperty('waterway', 'line-color', t.waterway);
+}
+document.getElementById('tint').addEventListener('click', () => {
+  tinted = !tinted;
+  applyTint();
 });
+map.on('load', applyTint);
 
 // sidebar cards
 const kindTag = { exact: 'апартамент', plot: 'парцел', approx: 'апартамент · приблизително' };
