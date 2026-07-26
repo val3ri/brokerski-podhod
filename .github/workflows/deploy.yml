@@ -22,6 +22,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Install, build, and upload the Astro site
         uses: withastro/action@v3
+        with:
+          # this project (Astro 7 + deps) requires Node >=22.12.0 — see package.json "engines";
+          # withastro/action defaults to Node 20, which fails the build outright
+          node-version: 22
 
   deploy:
     needs: build
