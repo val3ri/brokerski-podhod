@@ -14,7 +14,7 @@ const base = import.meta.env.BASE_URL;
 
     <div class="choices">
       <a class="choice-card comic-box" href={`${base}istoria/apartament`} data-intent="apartment">
-        <h3>Апартамент / къща</h3>
+        <h3>Имот</h3>
         <p>Кратка история как стигате до ключа</p>
       </a>
       <a class="choice-card comic-box" href={`${base}istoria/parcel`} data-intent="plot">
@@ -142,8 +142,9 @@ const base = import.meta.env.BASE_URL;
   .kicker { background: var(--paper); }
   .hero-q {
     font-family: var(--font-display);
+    font-weight: 800;
     font-size: clamp(40px, 8vw, 76px);
-    line-height: 1;
+    line-height: 1.1;
     padding: 10px 34px;
     margin: 14px 0 30px;
   }

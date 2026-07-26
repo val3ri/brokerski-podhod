@@ -1,12 +1,12 @@
 :root {
-  --paper: #eae5d9;
+  --paper: #faf9f7;
   --paper2: #f2eee3;
   --ink: #141414;
   --dim: #45413a;
 
   /* change fonts site-wide here — must include Cyrillic (Patrick Hand was dropped for lacking it) */
-  --font-display: 'Caveat', cursive;
-  --font-body: 'Neucha', cursive;
+  --font-display: 'Montserrat', sans-serif;
+  --font-body: 'Montserrat', sans-serif;
 }
 
 * {
@@ -51,7 +51,8 @@ body::after {
 
 h1, h2, h3 {
   font-family: var(--font-display);
-  line-height: 1.05;
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 a {
