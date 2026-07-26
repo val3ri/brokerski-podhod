@@ -1,0 +1,191 @@
+---
+// Hero: full-viewport ink map slowly orbiting behind the "Какво търсите?" question and the three
+// story choices. The map is non-interactive (interactive:false) so it never captures page scroll.
+---
+
+<section class="hero">
+  <div id="hero-map" aria-hidden="true"></div>
+  <div class="hero-veil" aria-hidden="true"></div>
+
+  <div class="hero-content">
+    <div><span class="kicker">Sonar · недвижими имоти в София</span></div>
+    <div class="bubble hero-q">Какво търсите?</div>
+
+    <div class="choices">
+      <a class="choice-card comic-box" href="/istoria/apartament" data-intent="apartment">
+        <h3>Апартамент / къща</h3>
+        <p>Кратка история как стигате до ключа</p>
+      </a>
+      <a class="choice-card comic-box" href="/istoria/parcel" data-intent="plot">
+        <h3>Парцел</h3>
+        <p>От идеята до готовата сграда</p>
+      </a>
+      <a class="choice-card comic-box" href="/imoti" data-intent="browse">
+        <h3>Просто разглеждам</h3>
+        <p>Направо към имотите</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="scrollhint" aria-hidden="true">▼</div>
+</section>
+
+<script>
+  import maplibregl from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+
+  const PAPER = '#eae5d9', INK = '#141414';
+
+  const map = new maplibregl.Map({
+    container: 'hero-map',
+    center: [23.322, 42.697],   // roughly central Sofia (near Nevsky / the centre)
+    zoom: 14.2, pitch: 55, bearing: 0,
+    interactive: false,          // never steals scroll/drag from the page
+    attributionControl: false,   // hero is decorative; attribution lives on the real /imoti map
+    style: {
+      version: 8,
+      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      sources: { omt: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+      // trimmed ink base — same palette as the /imoti map (hand-tinted washes), minus the
+      // listings/landmarks. TODO: could share these base layers with PropertyMap via a helper.
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': PAPER } },
+        { id: 'landuse-green', type: 'fill', source: 'omt', 'source-layer': 'park',
+          paint: { 'fill-color': '#bdcba2', 'fill-opacity': .8 } },
+        { id: 'landcover', type: 'fill', source: 'omt', 'source-layer': 'landcover',
+          filter: ['in', ['get','class'], ['literal',['grass','wood','forest']]],
+          paint: { 'fill-color': '#c9d3ae', 'fill-opacity': .6 } },
+        { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water',
+          paint: { 'fill-color': '#b3c4c2' } },
+        { id: 'road-minor', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['in', ['get','class'], ['literal',['minor','service','tertiary','path']]],
+          paint: { 'line-color': '#8f8a7a',
+            'line-width': ['interpolate',['linear'],['zoom'], 12, .3, 16, 2.2] } },
+        { id: 'road-major', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['in', ['get','class'], ['literal',['motorway','trunk','primary','secondary']]],
+          paint: { 'line-color': '#2c2a25',
+            'line-width': ['interpolate',['linear'],['zoom'], 11, .8, 16, 5] } },
+        { id: 'city-3d', type: 'fill-extrusion', source: 'omt', 'source-layer': 'building', minzoom: 13,
+          paint: {
+            'fill-extrusion-color': '#d6cfbe',
+            'fill-extrusion-height': ['coalesce', ['get','render_height'], 8],
+            'fill-extrusion-base': ['coalesce', ['get','render_min_height'], 0],
+            'fill-extrusion-opacity': .72
+          } },
+        { id: 'place-labels', type: 'symbol', source: 'omt', 'source-layer': 'place',
+          filter: ['in', ['get','class'], ['literal',['suburb','neighbourhood','quarter']]],
+          layout: { 'text-field': ['coalesce',['get','name:bg'],['get','name']],
+            'text-font': ['Noto Sans Italic'], 'text-size': 14, 'text-letter-spacing': .08 },
+          paint: { 'text-color': '#3d3a33', 'text-halo-color': PAPER, 'text-halo-width': 1.6 } },
+      ]
+    } as any
+  });
+
+  // slow ambient orbit via a rAF loop (smoother than chained easeTo). Paused when the hero is
+  // scrolled out of view (IntersectionObserver) and disabled entirely for prefers-reduced-motion.
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let spinning = false;
+  let raf = 0;
+  function frame() {
+    map.setBearing(map.getBearing() + 0.05); // ~3°/s → a full turn in ~2 min
+    raf = requestAnimationFrame(frame);
+  }
+  function start() { if (!spinning && !reduceMotion) { spinning = true; frame(); } }
+  function stop() { spinning = false; cancelAnimationFrame(raf); }
+
+  map.on('load', () => {
+    const hero = document.querySelector('.hero')!;
+    new IntersectionObserver(([e]) => (e.isIntersecting ? start() : stop()))
+      .observe(hero);
+  });
+
+  // remember which path the visitor picked (never gate them twice — see Planning.md entry flow)
+  document.querySelectorAll<HTMLAnchorElement>('.choice-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const intent = card.dataset.intent;
+      if (intent) localStorage.setItem('sonar_intent', intent);
+    });
+  });
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 86vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow: hidden;
+  }
+  #hero-map {
+    position: absolute;
+    inset: 0;
+    background: var(--paper);
+  }
+  /* paper veil so the moving map never fights the text for attention */
+  .hero-veil {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at center, rgba(234,229,217,.35) 0%, rgba(234,229,217,.55) 55%, rgba(234,229,217,.78) 100%);
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    width: min(880px, 94vw);
+    text-align: center;
+  }
+  .kicker { background: var(--paper); }
+  .hero-q {
+    font-family: 'Caveat', cursive;
+    font-size: clamp(40px, 8vw, 76px);
+    line-height: 1;
+    padding: 10px 34px;
+    margin: 14px 0 30px;
+  }
+
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .choice-card {
+    display: block;
+    text-decoration: none;
+    color: var(--ink);
+    padding: 20px 18px;
+    background: var(--paper);
+    text-align: left;
+    transition: transform .1s, box-shadow .1s;
+  }
+  .choice-card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 9px 9px 0 var(--ink);
+  }
+  .choice-card h3 { font-size: 26px; margin-bottom: 8px; }
+  .choice-card p { font-size: 17px; color: var(--dim); }
+
+  .scrollhint {
+    position: absolute;
+    bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    font-size: 22px;
+    color: var(--dim);
+    animation: bob 1.6s infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translate(-50%, 0); }
+    50% { transform: translate(-50%, 7px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scrollhint { animation: none; }
+  }
+
+  @media (max-width: 700px) {
+    .choices { grid-template-columns: 1fr; }
+  }
+</style>

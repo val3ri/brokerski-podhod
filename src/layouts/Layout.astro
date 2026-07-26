@@ -6,9 +6,10 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description?: string;
+  hideFooter?: boolean;
 }
 
-const { title, description = 'Брокерски подход — недвижими имоти в София' } = Astro.props;
+const { title, description = 'Sonar Development Company — недвижими имоти в София', hideFooter = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -27,6 +28,6 @@ const { title, description = 'Брокерски подход — недвижи
     <main>
       <slot />
     </main>
-    <Footer />
+    {!hideFooter && <Footer />}
   </body>
 </html>

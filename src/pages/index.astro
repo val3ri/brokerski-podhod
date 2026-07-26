@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
 
 const achievements = [
   { n: '12+', label: 'години опит' },
@@ -16,28 +17,8 @@ const services = [
 ];
 ---
 
-<Layout title="Брокерски подход — недвижими имоти в София">
-  <!-- Hero -->
-  <section class="hero">
-    <div class="frame comic-box">
-      <span class="kicker">София · имоти</span>
-      <h1>Какво търсите?</h1>
-      <div class="choices">
-        <a class="choice-card comic-box" href="/istoria/apartament" data-intent="apartment">
-          <h3>Апартамент / къща</h3>
-          <p>Кратка история как стигате до ключа</p>
-        </a>
-        <a class="choice-card comic-box" href="/istoria/parcel" data-intent="plot">
-          <h3>Парцел</h3>
-          <p>От идеята до готовата сграда</p>
-        </a>
-        <a class="choice-card comic-box" href="/imoti" data-intent="browse">
-          <h3>Просто разглеждам</h3>
-          <p>Направо към имотите</p>
-        </a>
-      </div>
-    </div>
-  </section>
+<Layout title="Sonar Development Company — недвижими имоти в София">
+  <Hero />
 
   <!-- Who we are -->
   <section id="koi-sme-nie" class="section">
@@ -110,23 +91,7 @@ const services = [
   </section>
 </Layout>
 
-<script>
-  document.querySelectorAll('.choice-card').forEach((card) => {
-    card.addEventListener('click', () => {
-      const intent = card.dataset.intent;
-      if (intent) localStorage.setItem('bp_intent', intent);
-    });
-  });
-</script>
-
 <style>
-  .hero {
-    min-height: calc(100vh - 66px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-  }
   .section {
     padding: 60px 20px;
     display: flex;
@@ -136,10 +101,6 @@ const services = [
     width: min(880px, 94vw);
     padding: 40px 48px;
   }
-  h1 {
-    font-size: clamp(44px, 8vw, 72px);
-    margin-bottom: 24px;
-  }
   h2 {
     font-size: clamp(30px, 5vw, 44px);
     margin-bottom: 16px;
@@ -148,25 +109,6 @@ const services = [
     font-size: 20px;
     color: var(--dim);
   }
-  .choices {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-  }
-  .choice-card {
-    display: block;
-    text-decoration: none;
-    color: var(--ink);
-    padding: 20px 18px;
-    background: var(--paper);
-    transition: transform .1s, box-shadow .1s;
-  }
-  .choice-card:hover {
-    transform: translate(-3px, -3px);
-    box-shadow: 9px 9px 0 var(--ink);
-  }
-  .choice-card h3 { font-size: 26px; margin-bottom: 8px; }
-  .choice-card p { font-size: 17px; }
 
   .team-placeholder {
     margin-top: 20px;

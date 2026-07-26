@@ -1,41 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import PropertyMap from '../../components/PropertyMap.astro';
 ---
 
-<Layout title="Имоти — Брокерски подход">
-  <section class="section">
-    <div class="frame comic-box">
-      <span class="kicker">Имоти</span>
-      <h1>Картата и списъкът с имоти</h1>
-      <p>Тук ще живее мастилената 3D карта на София с всички имоти, плюс филтри по квартал, цена, м² и тип.</p>
-      <p class="note"><!-- TODO: порт на demo-map/ + филтрируем списък + страници на отделните имоти (roadmap стъпка 7) -->В процес на изграждане.</p>
-    </div>
-  </section>
+<Layout title="Имоти — Sonar Development Company" hideFooter>
+  <PropertyMap />
 </Layout>
-
-<style>
-  .section {
-    min-height: calc(100vh - 66px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-  }
-  .frame {
-    width: min(880px, 94vw);
-    padding: 40px 48px;
-  }
-  h1 {
-    font-family: 'Caveat', cursive;
-    font-size: clamp(36px, 6vw, 56px);
-    margin-bottom: 16px;
-  }
-  p {
-    font-size: 20px;
-    color: var(--dim);
-  }
-  .note {
-    margin-top: 14px;
-    font-style: italic;
-  }
-</style>

@@ -1,0 +1,472 @@
+<div class="map-wrap">
+  <div id="map"></div>
+
+  <header class="comic-box">
+    <h1>Sonar — имотите ни в София</h1>
+    <p>черните сгради са имоти за продажба — кликни върху тях</p>
+  </header>
+
+  <aside class="comic-box">
+    <h2>Имоти</h2>
+    <div id="cards"></div>
+  </aside>
+
+  <div class="legend comic-box">
+    <div><span class="sw b"></span> имот за продажба</div>
+    <div><span class="sw g"></span> градът (скица)</div>
+    <div><span class="sw p"></span> парцел</div>
+    <div><span class="sw a"></span> приблизителна локация</div>
+  </div>
+
+  <div class="hint comic-box">влачи с десен бутон / Ctrl за завъртане в 3D</div>
+</div>
+
+<script>
+  import maplibregl from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+  import * as THREE from 'three';
+  import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+  const PAPER = '#eae5d9', INK = '#141414';
+
+  // rectangle building footprint: center lon/lat, width/depth in meters
+  function rect(lon: number, lat: number, w: number, d: number) {
+    const dx = w / 2 / (111320 * Math.cos(lat * Math.PI / 180));
+    const dy = d / 2 / 110540;
+    return [[[lon-dx,lat-dy],[lon+dx,lat-dy],[lon+dx,lat+dy],[lon-dx,lat+dy],[lon-dx,lat-dy]]];
+  }
+  // polygon from meter offsets [x,y] around a center — for real blueprint footprints
+  function poly(lon: number, lat: number, pts: [number, number][]) {
+    const mx = 1 / (111320 * Math.cos(lat * Math.PI / 180)), my = 1 / 110540;
+    const ring = pts.map(([x, y]) => [lon + x * mx, lat + y * my]);
+    ring.push(ring[0]);
+    return [ring];
+  }
+  function circle(lon: number, lat: number, rMeters: number, n = 48) {
+    const ring = [];
+    for (let i = 0; i <= n; i++) {
+      const a = 2 * Math.PI * i / n;
+      ring.push([
+        lon + Math.cos(a) * rMeters / (111320 * Math.cos(lat * Math.PI / 180)),
+        lat + Math.sin(a) * rMeters / 110540
+      ]);
+    }
+    return [ring];
+  }
+
+  // --- stylized 3D landmarks (NDK, Alexander Nevsky) — orientation anchors, not listings ---
+  // pale like the rest of the sketched city (never black — black is reserved for listings)
+  const LANDMARK_PALE = 0xd6cfbe;
+  const landmarkMat = new THREE.MeshBasicMaterial({ color: LANDMARK_PALE, side: THREE.DoubleSide });
+  const landmarkInkLine = new THREE.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: .85 });
+
+  // low segment counts on purpose: EdgesGeometry then reads as intentional hand-drawn facets
+  // instead of lat/long clutter (domes) or a barcode of near-parallel lines (smooth cylinders)
+  function meshWithInk(geometry: THREE.BufferGeometry) {
+    const mesh = new THREE.Mesh(geometry, landmarkMat);
+    const edges = new THREE.EdgesGeometry(geometry, 15);
+    mesh.add(new THREE.LineSegments(edges, landmarkInkLine));
+    return mesh;
+  }
+
+  // NDK: stepped/tapering tiers (ziggurat massing) + thin spire
+  function buildNDK() {
+    const group = new THREE.Group();
+    const tiers = [
+      { w: 90, h: 12, d: 70, dx: 0 },
+      { w: 65, h: 16, d: 50, dx: -4 },
+      { w: 46, h: 14, d: 34, dx: 3 },
+      { w: 30, h: 20, d: 22, dx: -2 },
+    ];
+    let baseY = 0;
+    for (const t of tiers) {
+      const mesh = meshWithInk(new THREE.BoxGeometry(t.w, t.h, t.d));
+      mesh.position.set(t.dx, baseY + t.h / 2, 0);
+      group.add(mesh);
+      baseY += t.h;
+    }
+    const spire = meshWithInk(new THREE.CylinderGeometry(1, 1.4, 12, 6));
+    spire.position.set(0, baseY + 6, 0);
+    group.add(spire);
+    return group;
+  }
+
+  // Alexander Nevsky Cathedral: real model (CC-BY-4.0, "Alexander Nevsky Cathedral – Sofia" by iwalk,
+  // https://sketchfab.com/3d-models/alexander-nevsky-cathedral-sofia-d46c08dacb074203bb629503e7025292 —
+  // attribution required, see the map's attribution control). Real height incl. bell tower ~50m.
+  const NEVSKY_MODEL_URL = '/models/nevsky/scene.gltf';
+  const NEVSKY_REAL_HEIGHT = 80;
+  // facing is off — the source model's heading is arbitrary. Tune this in degrees (0-360) and reload;
+  // positive turns it clockwise looking straight down from above.
+  const NEVSKY_ROTATION_DEG = -90;
+  // true = keep the model's own real materials/textures ("default colors"); false = flat pale + ink
+  // outlines to match the rest of the map (drops the ~21MB of source textures — see loadNevsky()).
+  const NEVSKY_USE_ORIGINAL_MATERIALS = false;
+  // nudge the model in meters if it's not sitting in the right spot — X is east(+)/west(-),
+  // Z is south(+)/north(-) before the model matrix's rotation bakes it onto the real map.
+  const NEVSKY_OFFSET_X = 10;
+  const NEVSKY_OFFSET_Z = -30;
+
+  async function loadNevsky() {
+    const gltf = await new GLTFLoader().loadAsync(NEVSKY_MODEL_URL);
+    const model = gltf.scene;
+
+    // rotate FIRST — centering below measures the bounding box in its current (post-rotation) pose,
+    // since rotation happens around the model's raw origin, not its visual center. Centering before
+    // rotating would leave it centered for the old heading and off-center after turning.
+    model.rotation.y = THREE.MathUtils.degToRad(NEVSKY_ROTATION_DEG);
+
+    // the source model's scale/origin are arbitrary — normalize to real-world meters, base on the
+    // ground (y=0), centered horizontally, so it drops into the same anchor/offset math as buildNDK()
+    const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+    model.scale.setScalar(NEVSKY_REAL_HEIGHT / size.y);
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    model.position.y -= box.min.y;
+
+    if (!NEVSKY_USE_ORIGINAL_MATERIALS) {
+      // ink-style to match the rest of the map (also drops the ~21MB of source textures entirely):
+      // flat pale material + edge outlines, same as the procedural landmarks. Higher edge threshold
+      // than meshWithInk()'s 15° — real architectural detail at 15° would clutter into a wireframe.
+      model.traverse((child: any) => {
+        if (child.isMesh) {
+          child.material = landmarkMat;
+          const edges = new THREE.EdgesGeometry(child.geometry, 35);
+          child.add(new THREE.LineSegments(edges, landmarkInkLine));
+        }
+      });
+    }
+    return model;
+  }
+
+  // flat-earth meter offset from an anchor lon/lat — same convention as rect()/poly() above
+  function meterOffsetFrom(anchorLon: number, anchorLat: number, lon: number, lat: number) {
+    const mx = 111320 * Math.cos(anchorLat * Math.PI / 180);
+    const my = 110540;
+    return [(lon - anchorLon) * mx, (lat - anchorLat) * my];
+  }
+
+  const LISTINGS = [
+    { id: 1, kind: 'exact', title: 'Тристаен в Лозенец', price: '185 000 €', area: '96 м²',
+      lon: 23.3247, lat: 42.6749, h: 46, w: 34, d: 22,
+      view: { zoom: 15.6, pitch: 58, bearing: -20 } },
+    { id: 2, kind: 'exact', title: 'Двустаен до НДК', price: '142 000 €', area: '68 м²',
+      lon: 23.3186, lat: 42.6847, h: 38, w: 28, d: 24,
+      view: { zoom: 15.6, pitch: 58, bearing: 15 } },
+    { id: 3, kind: 'exact', title: 'Мезонет в Изток', price: '230 000 €', area: '140 м²',
+      lon: 23.3498, lat: 42.6704,
+      // "blueprint" footprint: L-shaped wing + corner tower + set-back penthouse
+      parts: [
+        { pts: [[-22,-9],[18,-9],[18,6],[-22,6]], base: 0, height: 18 },          // long wing
+        { pts: [[-22,6],[-7,6],[-7,26],[-22,26]], base: 0, height: 18 },          // short wing (L)
+        { pts: [[2,6],[18,6],[18,22],[2,22]], base: 0, height: 46 },              // tower
+        { pts: [[5,9],[15,9],[15,19],[5,19]], base: 46, height: 54 },             // penthouse setback
+      ],
+      view: { zoom: 16.2, pitch: 60, bearing: -35 } },
+    { id: 4, kind: 'plot', title: 'Парцел в Панчарево', price: '95 000 €', area: '1200 м²',
+      lon: 23.4025, lat: 42.5936, pw: 120, pd: 95,
+      view: { zoom: 15.2, pitch: 40, bearing: 0 } },
+    { id: 5, kind: 'approx', title: 'Тристаен в Иван Вазов', price: '176 000 €', area: '92 м²',
+      lon: 23.3134, lat: 42.6789, r: 220,
+      note: 'точният адрес — при контакт',
+      view: { zoom: 14.8, pitch: 50, bearing: 0 } },
+  ] as any[];
+
+  const buildingsGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'exact').flatMap(l =>
+    (l.parts ?? [{ pts: null, base: 0, height: l.h }]).map((p: any) => ({
+      type: 'Feature',
+      properties: { id: l.id, height: p.height, base: p.base },
+      geometry: { type: 'Polygon',
+        coordinates: p.pts ? poly(l.lon, l.lat, p.pts) : rect(l.lon, l.lat, l.w, l.d) }
+    }))
+  )} as any;
+  const plotsGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'plot').map(l => ({
+    type: 'Feature', properties: { id: l.id },
+    geometry: { type: 'Polygon', coordinates: rect(l.lon, l.lat, l.pw, l.pd) }
+  }))} as any;
+  const approxGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'approx').map(l => ({
+    type: 'Feature', properties: { id: l.id },
+    geometry: { type: 'Polygon', coordinates: circle(l.lon, l.lat, l.r) }
+  }))} as any;
+  const labelsGJ = { type: 'FeatureCollection', features: LISTINGS.map(l => ({
+    type: 'Feature', properties: { id: l.id, label: l.price },
+    geometry: { type: 'Point', coordinates: [l.lon, l.lat] }
+  }))} as any;
+
+  // landmarks: real-world anchor at NDK; Nevsky positioned as a meter offset from it (see meterOffsetFrom)
+  const NDK_LONLAT: [number, number] = [23.3186, 42.6852];
+  const NEVSKY_LONLAT: [number, number] = [23.3326, 42.6956];
+  const [nevskyDx, nevskyDy] = meterOffsetFrom(NDK_LONLAT[0], NDK_LONLAT[1], NEVSKY_LONLAT[0], NEVSKY_LONLAT[1]);
+
+  const landmarksLayer: any = {
+    id: 'landmarks-3d',
+    type: 'custom',
+    renderingMode: '3d',
+    onAdd(map: maplibregl.Map, gl: WebGLRenderingContext) {
+      this.camera = new THREE.Camera();
+      this.scene = new THREE.Scene();
+
+      // MeshBasicMaterial (the procedural landmarks' ink style) ignores lights entirely, so this is
+      // only for NEVSKY_USE_ORIGINAL_MATERIALS — its source materials are lit (PBR); with zero lights
+      // in the scene they'd render solid black instead of showing their real colors/textures.
+      this.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+      const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+      sun.position.set(1, 2, 1);
+      this.scene.add(sun);
+
+      this.scene.add(buildNDK());
+
+      const anchorMerc = maplibregl.MercatorCoordinate.fromLngLat(NDK_LONLAT, 0);
+      const scale = anchorMerc.meterInMercatorCoordinateUnits();
+      // T * S * R (scale+rotate the model, then translate to the map anchor) — applied to a vertex
+      // that's rotate first, then scale, then translate; scale-then-rotate (T*R*S) would flip the
+      // "up" axis sign and bury the buildings below the visible ground.
+      this.modelMatrix = new THREE.Matrix4()
+        .makeTranslation(anchorMerc.x, anchorMerc.y, anchorMerc.z)
+        .multiply(new THREE.Matrix4().makeScale(scale, -scale, scale))
+        .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+
+      this.renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
+      this.renderer.autoClear = false;
+
+      // async: the real model loads after this layer is already added — one-shot repaint on arrival
+      // (not a per-frame triggerRepaint; the static-scene rule from the procedural version still holds)
+      loadNevsky().then((nevsky) => {
+        nevsky.position.x += nevskyDx + NEVSKY_OFFSET_X;
+        nevsky.position.z += -nevskyDy + NEVSKY_OFFSET_Z;
+        this.scene.add(nevsky);
+        map.triggerRepaint();
+      });
+    },
+    render(gl: WebGLRenderingContext, matrix: number[]) {
+      this.camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix).multiply(this.modelMatrix);
+      this.renderer.resetState();
+      this.renderer.render(this.scene, this.camera);
+      // static scene, no animation — no triggerRepaint() here; MapLibre already re-renders on camera change
+    }
+  };
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    center: [23.327, 42.675],
+    zoom: 13.6, pitch: 55, bearing: -17,
+    maxPitch: 70,
+    attributionControl: { compact: true, customAttribution:
+      '"Alexander Nevsky Cathedral – Sofia" by <a href="https://sketchfab.com/iwalk" target="_blank">iwalk</a>, CC BY 4.0' } as any,
+    style: {
+      version: 8,
+      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      sources: {
+        omt: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+        listings: { type: 'geojson', data: buildingsGJ },
+        plots: { type: 'geojson', data: plotsGJ },
+        approx: { type: 'geojson', data: approxGJ },
+        labels: { type: 'geojson', data: labelsGJ },
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': PAPER } },
+        // hand-tinted washes baked in (sage parks, pale blue-gray water) — this is the final
+        // decision per Planning.md §6; the old mono-vs-tinted toggle was removed.
+        { id: 'landuse-green', type: 'fill', source: 'omt', 'source-layer': 'park',
+          paint: { 'fill-color': '#bdcba2', 'fill-opacity': .8 } },
+        { id: 'landcover', type: 'fill', source: 'omt', 'source-layer': 'landcover',
+          filter: ['in', ['get','class'], ['literal',['grass','wood','forest']]],
+          paint: { 'fill-color': '#c9d3ae', 'fill-opacity': .6 } },
+        { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water',
+          paint: { 'fill-color': '#b3c4c2' } },
+        { id: 'waterway', type: 'line', source: 'omt', 'source-layer': 'waterway',
+          paint: { 'line-color': '#a7bcb9', 'line-width': 2 } },
+
+        // roads — ink lines
+        { id: 'road-minor', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['in', ['get','class'], ['literal',['minor','service','tertiary','path']]],
+          paint: { 'line-color': '#8f8a7a',
+            'line-width': ['interpolate',['linear'],['zoom'], 12, .3, 16, 2.2] } },
+        { id: 'road-major', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['in', ['get','class'], ['literal',['motorway','trunk','primary','secondary']]],
+          paint: { 'line-color': '#2c2a25',
+            'line-width': ['interpolate',['linear'],['zoom'], 11, .8, 16, 5] } },
+        { id: 'rail', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['==', ['get','class'], 'rail'],
+          paint: { 'line-color': '#6a655a', 'line-width': 1.2, 'line-dasharray': [4,3] } },
+
+        // the city: pale sketched volumes
+        // excludes the OSM building parts that sit almost exactly on Nevsky's real-world spot (an
+        // unrelated ~51m-tall stepped structure) so they don't visually clash with the real model
+        { id: 'city-3d', type: 'fill-extrusion', source: 'omt', 'source-layer': 'building', minzoom: 13,
+          filter: ['!', ['in', ['id'], ['literal', [
+            1554477712, 3375916842, 3375803392, 3375803362, 3375803372,
+            3375803462, 3375803430, 3375803352, 3375803380, 3375803410
+          ]]]],
+          paint: {
+            'fill-extrusion-color': '#d6cfbe',
+            'fill-extrusion-height': ['coalesce', ['get','render_height'], 8],
+            'fill-extrusion-base': ['coalesce', ['get','render_min_height'], 0],
+            'fill-extrusion-opacity': .72
+          } },
+
+        // plots: hatched + dashed ink outline
+        { id: 'plot-fill', type: 'fill', source: 'plots',
+          paint: { 'fill-pattern': 'hatch', 'fill-opacity': .9 } },
+        { id: 'plot-line', type: 'line', source: 'plots',
+          paint: { 'line-color': INK, 'line-width': 3, 'line-dasharray': [2,1.6] } },
+
+        // approximate location: dotted ink circle
+        { id: 'approx-fill', type: 'fill', source: 'approx',
+          paint: { 'fill-color': INK, 'fill-opacity': .08 } },
+        { id: 'approx-line', type: 'line', source: 'approx',
+          paint: { 'line-color': INK, 'line-width': 2.5, 'line-dasharray': [.5,1.8] } },
+
+        // listings: tall black ink buildings
+        { id: 'listings-3d', type: 'fill-extrusion', source: 'listings',
+          paint: {
+            'fill-extrusion-color': INK,
+            'fill-extrusion-height': ['get','height'],
+            'fill-extrusion-base': ['coalesce', ['get','base'], 0],
+            'fill-extrusion-opacity': .94
+          } },
+
+        // neighbourhood names
+        { id: 'place-labels', type: 'symbol', source: 'omt', 'source-layer': 'place',
+          filter: ['in', ['get','class'], ['literal',['suburb','neighbourhood','quarter']]],
+          layout: { 'text-field': ['coalesce',['get','name:bg'],['get','name']],
+            'text-font': ['Noto Sans Italic'], 'text-size': 15, 'text-letter-spacing': .08 },
+          paint: { 'text-color': '#3d3a33', 'text-halo-color': PAPER, 'text-halo-width': 1.6 } },
+
+        // price tags floating above listings
+        { id: 'price-labels', type: 'symbol', source: 'labels',
+          layout: { 'text-field': ['get','label'], 'text-font': ['Noto Sans Bold'],
+            'text-size': 14, 'text-offset': [0, -2.6], 'text-allow-overlap': true },
+          paint: { 'text-color': INK, 'text-halo-color': PAPER, 'text-halo-width': 2 } },
+      ]
+    } as any
+  });
+
+  // hand-drawn diagonal hatch pattern for plots
+  map.on('load', () => {
+    const c = document.createElement('canvas'); c.width = c.height = 16;
+    const x = c.getContext('2d')!;
+    x.strokeStyle = 'rgba(20,20,20,.45)'; x.lineWidth = 1.6;
+    for (const o of [-16, 0, 16]) {
+      x.beginPath(); x.moveTo(o, 16); x.lineTo(o + 16, 0); x.stroke();
+    }
+    map.addImage('hatch', x.getImageData(0, 0, 16, 16), { pixelRatio: 1 });
+
+    map.addLayer(landmarksLayer, 'listings-3d');
+  });
+
+  function popupHTML(l: any) {
+    return `<div class="pop-t">${l.title}</div>
+      <div class="pop-d">${l.price} &nbsp;·&nbsp; ${l.area}${l.note ? `<br><em>${l.note}</em>` : ''}</div>
+      <a class="pop-a" href="#" onclick="return false">Виж имота →</a>`;
+  }
+  let popup: maplibregl.Popup | undefined;
+  function showListing(l: any, fly: boolean) {
+    if (fly) map.flyTo({ center: [l.lon, l.lat], ...l.view, duration: 1800, essential: true });
+    if (popup) popup.remove();
+    popup = new maplibregl.Popup({ offset: 14, maxWidth: '280px' })
+      .setLngLat([l.lon, l.lat]).setHTML(popupHTML(l)).addTo(map);
+  }
+
+  for (const layer of ['listings-3d', 'plot-fill', 'approx-fill']) {
+    map.on('click', layer, e => {
+      const l = LISTINGS.find(x => x.id === e.features![0].properties!.id);
+      if (l) showListing(l, false);
+    });
+    map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+  }
+
+
+  // sidebar cards
+  const kindTag: Record<string, string> = { exact: 'апартамент', plot: 'парцел', approx: 'апартамент · приблизително' };
+  document.getElementById('cards')!.innerHTML = LISTINGS.map(l => `
+    <div class="card" data-id="${l.id}">
+      <div class="t">${l.title}</div>
+      <div class="d"><span>${l.area}</span><b>${l.price}</b></div>
+      <span class="tag">${kindTag[l.kind]}</span>
+    </div>`).join('');
+  document.getElementById('cards')!.addEventListener('click', e => {
+    const card = (e.target as HTMLElement).closest('.card') as HTMLElement | null;
+    if (card) showListing(LISTINGS.find(l => l.id === +card.dataset.id!), true);
+  });
+</script>
+
+<style is:global>
+  /* is:global: MapLibre injects popups and we inject sidebar cards via innerHTML, both outside
+     Astro's rendered template — scoped styles wouldn't reach either, so this whole block stays
+     unscoped rather than silently failing to style dynamically-created DOM. */
+
+  .map-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .map-wrap #map {
+    position: absolute;
+    inset: 0;
+    background: var(--paper);
+  }
+
+  .map-wrap header.comic-box {
+    position: absolute; z-index: 20; top: 18px; left: 50%; transform: translateX(-50%);
+    padding: 8px 22px 6px; text-align: center; max-width: min(92vw, 640px);
+  }
+  .map-wrap header h1 { font-family: 'Caveat', cursive; font-size: 30px; letter-spacing: 1px; color: var(--ink); line-height: 1; }
+  .map-wrap header p { font-size: 15px; color: var(--dim); }
+
+  .map-wrap aside {
+    position: absolute; z-index: 20; left: 18px; top: 110px; width: 285px;
+    max-height: calc(100% - 200px); overflow-y: auto; padding: 12px;
+  }
+  .map-wrap aside h2 { font-family: 'Caveat', cursive; font-size: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
+  .map-wrap .card {
+    border: 2px solid var(--ink); padding: 8px 10px; margin-bottom: 10px; cursor: pointer;
+    background: var(--paper2); transition: transform .1s, box-shadow .1s;
+    font-family: 'Neucha', cursive;
+  }
+  .map-wrap .card:hover { transform: translate(-2px,-2px); box-shadow: 3px 3px 0 var(--ink); }
+  .map-wrap .card .t { font-size: 18px; font-weight: bold; }
+  .map-wrap .card .d { font-size: 15px; color: #333; display: flex; justify-content: space-between; }
+  .map-wrap .card .tag { display: inline-block; font-size: 12px; border: 1.5px solid var(--ink); padding: 0 6px; margin-top: 3px; background: var(--paper); }
+
+  .map-wrap .legend {
+    position: absolute; z-index: 20; right: 18px; bottom: 34px; padding: 10px 14px; font-size: 15px;
+    font-family: 'Neucha', cursive;
+  }
+  .map-wrap .legend div { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .map-wrap .sw { width: 22px; height: 15px; border: 2px solid var(--ink); flex: none; }
+  .map-wrap .sw.b { background: var(--ink); }
+  .map-wrap .sw.g { background: #d6cfbe; }
+  .map-wrap .sw.p { border-style: dashed; background: repeating-linear-gradient(45deg, transparent 0 4px, #14141455 4px 6px); }
+  .map-wrap .sw.a { border-radius: 50%; border-style: dotted; background: #14141422; }
+
+  .map-wrap .hint {
+    position: absolute; z-index: 20; left: 18px; bottom: 34px; padding: 6px 12px; font-size: 14px;
+    color: var(--dim); font-family: 'Neucha', cursive;
+  }
+
+
+  /* comic popups — MapLibre-injected, must stay global (see note above) */
+  .maplibregl-popup-content {
+    font-family: 'Neucha', cursive; background: var(--paper);
+    border: 3px solid var(--ink); border-radius: 0; box-shadow: 5px 5px 0 var(--ink);
+    padding: 10px 14px; min-width: 200px;
+  }
+  .maplibregl-popup-tip { border-top-color: var(--ink) !important; }
+  .pop-t { font-family: 'Caveat', cursive; font-size: 22px; line-height: 1.1; }
+  .pop-d { font-size: 16px; margin: 4px 0; }
+  .pop-a {
+    display: inline-block; margin-top: 4px; font-size: 15px; color: var(--paper);
+    background: var(--ink); padding: 2px 10px; text-decoration: none;
+  }
+  .maplibregl-popup-close-button { font-size: 20px; color: var(--ink); }
+
+  @media (max-width: 720px) {
+    .map-wrap aside { display: none; }
+    .map-wrap header h1 { font-size: 22px; }
+  }
+</style>
