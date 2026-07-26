@@ -1,0 +1,61 @@
+---
+// A small, static (non-orbiting, non-interactive) preview of the ink map for the homepage
+// "Имоти" teaser. Same base style as Hero.astro's map, at a fixed angle — this is a snapshot,
+// not the hero moment; real interaction lives on /imoti (PropertyMap.astro).
+---
+
+<div id="preview-map" class="preview-map" aria-hidden="true"></div>
+
+<script>
+  import maplibregl from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+
+  const PAPER = '#eae5d9';
+
+  new maplibregl.Map({
+    container: 'preview-map',
+    center: [23.325, 42.688],
+    zoom: 14.6, pitch: 55, bearing: -15,
+    interactive: false,
+    attributionControl: false,
+    style: {
+      version: 8,
+      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      sources: { omt: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+      // same trimmed ink base as Hero.astro (parks/water washes, roads, pale sketched buildings)
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': PAPER } },
+        { id: 'landuse-green', type: 'fill', source: 'omt', 'source-layer': 'park',
+          paint: { 'fill-color': '#bdcba2', 'fill-opacity': .8 } },
+        { id: 'landcover', type: 'fill', source: 'omt', 'source-layer': 'landcover',
+          filter: ['in', ['get','class'], ['literal',['grass','wood','forest']]],
+          paint: { 'fill-color': '#c9d3ae', 'fill-opacity': .6 } },
+        { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water',
+          paint: { 'fill-color': '#b3c4c2' } },
+        { id: 'road-minor', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['in', ['get','class'], ['literal',['minor','service','tertiary','path']]],
+          paint: { 'line-color': '#8f8a7a',
+            'line-width': ['interpolate',['linear'],['zoom'], 12, .3, 16, 2.2] } },
+        { id: 'road-major', type: 'line', source: 'omt', 'source-layer': 'transportation',
+          filter: ['in', ['get','class'], ['literal',['motorway','trunk','primary','secondary']]],
+          paint: { 'line-color': '#2c2a25',
+            'line-width': ['interpolate',['linear'],['zoom'], 11, .8, 16, 5] } },
+        { id: 'city-3d', type: 'fill-extrusion', source: 'omt', 'source-layer': 'building', minzoom: 13,
+          paint: {
+            'fill-extrusion-color': '#d6cfbe',
+            'fill-extrusion-height': ['coalesce', ['get','render_height'], 8],
+            'fill-extrusion-base': ['coalesce', ['get','render_min_height'], 0],
+            'fill-extrusion-opacity': .72
+          } },
+      ]
+    } as any
+  });
+</script>
+
+<style>
+  .preview-map {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--paper);
+  }
+</style>

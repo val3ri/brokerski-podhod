@@ -21,3 +21,16 @@ todos:
 
 цвят на бекграунда - този който смених
   /* --paper: #eae5d9; original */
+
+MADE Tommy: платен?
+It's free only for personal use — a commercial license from the foundry (MADEType) is required for business use, this being an actual company site.
+
+Постижения секция? /числата зад доверието/
+- доволни клиенти
+- продадени имоти/сделки
+
+има ли нужда от такава секция?
+
+
+--
+also to split the sections from each other - can we change the background colour to be a bit different, to be distinctive where is the line between them?

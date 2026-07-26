@@ -1,0 +1,68 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { buildings } from '../../../data/buildings';
+
+export function getStaticPaths() {
+  return buildings.flatMap((building) =>
+    building.suites.map((suite) => ({
+      params: { slug: building.slug, suite: suite.number },
+      props: { building, suite },
+    }))
+  );
+}
+
+const { building, suite } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<Layout title={`Апартамент №${suite.number} — ${building.name} — Sonar Development Company`}>
+  <section class="section">
+    <div class="frame comic-box">
+      <a class="back-link" href={`${base}obekti/${building.slug}`}>← Обратно към {building.name}</a>
+      <span class="kicker">{suite.type} · {suite.size}</span>
+      <h1>Апартамент №{suite.number}</h1>
+      <p class="note">
+        <!-- TODO: реален план, снимки, цена, етаж, изложение, описание -->
+        Подробна информация за този апартамент предстои. Свържете се с нас за повече детайли.
+      </p>
+      <a class="btn" href={`${base}#kontakti`}>Запитване →</a>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .section {
+    min-height: calc(100vh - 66px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+  .frame {
+    width: min(720px, 94vw);
+    padding: 40px 48px;
+  }
+  .back-link {
+    display: block;
+    font-size: 15px;
+    color: var(--dim);
+    text-decoration: none;
+    margin-bottom: 16px;
+  }
+  .back-link:hover {
+    text-decoration: underline;
+  }
+  h1 {
+    font-size: clamp(30px, 4vw, 42px);
+    margin: 8px 0 16px;
+  }
+  .note {
+    font-size: 18px;
+    color: var(--dim);
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 700px) {
+    .frame { padding: 26px 22px; }
+  }
+</style>

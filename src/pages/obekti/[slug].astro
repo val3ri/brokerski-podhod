@@ -1,0 +1,249 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../../layouts/Layout.astro';
+import { buildings } from '../../data/buildings';
+
+export function getStaticPaths() {
+  return buildings.map((building) => ({
+    params: { slug: building.slug },
+    props: { building },
+  }));
+}
+
+const { building } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<Layout title={`${building.name} — Sonar Development Company`}>
+  <section class="section">
+    <div class="page-grid">
+      <!-- left: photo slider -->
+      <div class="gallery-col">
+        {building.images.length > 0 ? (
+          <div class="slider" data-slider>
+            <div class="slider-track">
+              {building.images.map((img) => (
+                <div class="slide">
+                  <Image src={img} alt={building.name} width={700} height={525} />
+                </div>
+              ))}
+            </div>
+            {building.images.length > 1 && (
+              <>
+                <button class="slider-btn prev" type="button" aria-label="Предишна снимка">‹</button>
+                <button class="slider-btn next" type="button" aria-label="Следваща снимка">›</button>
+                <div class="slider-dots">
+                  {building.images.map((_, i) => (
+                    <button class="dot" type="button" data-index={i} aria-label={`Снимка ${i + 1}`}></button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div class="gallery-placeholder">
+            <!-- TODO: реални снимки на обекта -->
+            <span>снимки предстоят</span>
+          </div>
+        )}
+      </div>
+
+      <!-- right: info + suites -->
+      <div class="info-col">
+        <a class="back-link" href={`${base}#kontakti`}>← Обратно към началото</a>
+        <span class="kicker">{building.status}</span>
+        <h1>{building.name}</h1>
+        <p class="note">
+          <!-- TODO: реално описание, локация, срокове -->
+          Повече информация за този обект предстои. Свържете се с нас за подробности.
+        </p>
+
+        {building.suites.length > 0 && (
+          <table class="suites-table">
+            <thead>
+              <tr><th>№</th><th>Тип</th><th>Площ</th></tr>
+            </thead>
+            <tbody>
+              {building.suites.map((s) => (
+                <tr>
+                  <td><a href={`${base}obekti/${building.slug}/${s.number}`}>{s.number}</a></td>
+                  <td><a href={`${base}obekti/${building.slug}/${s.number}`}>{s.type}</a></td>
+                  <td><a href={`${base}obekti/${building.slug}/${s.number}`}>{s.size}</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <a class="btn" href={`${base}#kontakti`}>Запитване →</a>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-slider]').forEach((slider) => {
+    const track = slider.querySelector<HTMLElement>('.slider-track')!;
+    const dots = [...slider.querySelectorAll<HTMLElement>('.dot')];
+    const count = track.children.length;
+    let index = 0;
+
+    function show(i: number) {
+      index = (i + count) % count;
+      track.style.transform = `translateX(-${index * 100}%)`;
+      dots.forEach((d, di) => d.classList.toggle('active', di === index));
+    }
+
+    slider.querySelector('.prev')?.addEventListener('click', () => show(index - 1));
+    slider.querySelector('.next')?.addEventListener('click', () => show(index + 1));
+    dots.forEach((dot, i) => dot.addEventListener('click', () => show(i)));
+
+    show(0);
+  });
+</script>
+
+<style>
+  .section {
+    min-height: calc(100vh - 66px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+  .page-grid {
+    width: min(1080px, 94vw);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* --- gallery / slider --- */
+  .slider {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border: 3px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+  .slider-track {
+    display: flex;
+    height: 100%;
+    transition: transform .4s ease;
+  }
+  .slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+  }
+  .slide :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .slider-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .slider-btn.prev { left: 10px; }
+  .slider-btn.next { right: 10px; }
+  .slider-dots {
+    position: absolute;
+    bottom: 12px; left: 0; right: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    cursor: pointer;
+    padding: 0;
+  }
+  .dot.active { background: var(--ink); }
+
+  .gallery-placeholder {
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper2);
+    color: var(--dim);
+    font-style: italic;
+    border: 3px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+
+  /* --- info column --- */
+  .back-link {
+    display: block;
+    font-size: 15px;
+    color: var(--dim);
+    text-decoration: none;
+    margin-bottom: 16px;
+  }
+  .back-link:hover {
+    text-decoration: underline;
+  }
+  h1 {
+    font-size: clamp(30px, 4vw, 42px);
+    margin: 8px 0 16px;
+  }
+  .note {
+    font-size: 18px;
+    color: var(--dim);
+    margin-bottom: 20px;
+  }
+
+  .suites-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    border: 2px solid var(--ink);
+  }
+  .suites-table th {
+    text-align: left;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .suites-table td {
+    padding: 0;
+    border-top: 1px solid #d8d4c8;
+  }
+  .suites-table td a {
+    display: block;
+    padding: 10px 12px;
+    color: inherit;
+    text-decoration: none;
+    font-size: 17px;
+  }
+  .suites-table tr:hover td {
+    background: var(--paper2);
+  }
+
+  @media (max-width: 800px) {
+    .page-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+</style>

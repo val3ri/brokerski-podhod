@@ -1,0 +1,83 @@
+---
+// Reusable two-column section shell: text on one side, a framed visual on the other.
+// The visual side is wrapped in .comic-box so it reads like a comic panel showing a
+// picture/map, regardless of what's actually inside it (placeholder text, icons, a map).
+interface Props {
+  kicker: string;
+  reverse?: boolean;
+  id?: string;
+  // true = skip the comic-box frame around the visual side (e.g. when the visual itself
+  // is already framed, like two overlapping photo cards, and a third outer box would clutter)
+  plain?: boolean;
+  // alternates the section's own background so adjacent sections read as distinct blocks
+  // while scrolling, instead of blending into one continuous page
+  bg?: 'paper' | 'paper2';
+}
+const { kicker, reverse = false, id, plain = false, bg = 'paper' } = Astro.props;
+---
+
+<section id={id} class:list={['split-section', `bg-${bg}`]}>
+  <div class:list={['split-grid', { reverse }]}>
+    <div class="split-text" data-reveal>
+      <span class="kicker">{kicker}</span>
+      <slot name="text" />
+    </div>
+    <div class:list={['split-visual', { 'comic-box': !plain, plain }]} data-reveal style="--i:1">
+      <slot name="visual" />
+    </div>
+  </div>
+</section>
+
+<style>
+  .split-section {
+    min-height: 80vh;
+    padding: 60px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+  }
+  .split-section.bg-paper2 {
+    background: var(--paper2);
+  }
+  .split-grid {
+    width: min(1080px, 94vw);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .split-text { order: 1; }
+  .split-visual { order: 2; }
+  .split-grid.reverse .split-text { order: 2; }
+  .split-grid.reverse .split-visual { order: 1; }
+
+  .split-visual {
+    padding: 20px;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .split-visual.plain {
+    padding: 0;
+    overflow: visible;
+  }
+
+  @media (max-width: 800px) {
+    .split-grid,
+    .split-grid.reverse {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .split-grid .split-text,
+    .split-grid.reverse .split-text {
+      order: 1;
+    }
+    .split-grid .split-visual,
+    .split-grid.reverse .split-visual {
+      order: 2;
+    }
+  }
+</style>
