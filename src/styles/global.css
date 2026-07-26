@@ -3,6 +3,10 @@
   --paper2: #f2eee3;
   --ink: #141414;
   --dim: #45413a;
+
+  /* change fonts site-wide here — must include Cyrillic (Patrick Hand was dropped for lacking it) */
+  --font-display: 'Caveat', cursive;
+  --font-body: 'Neucha', cursive;
 }
 
 * {
@@ -16,7 +20,7 @@ html {
 }
 
 body {
-  font-family: 'Neucha', cursive;
+  font-family: var(--font-body);
   color: var(--ink);
   background: var(--paper);
   line-height: 1.45;
@@ -46,7 +50,7 @@ body::after {
 }
 
 h1, h2, h3 {
-  font-family: 'Caveat', cursive;
+  font-family: var(--font-display);
   line-height: 1.05;
 }
 
@@ -94,7 +98,7 @@ ul {
 
 .btn {
   display: inline-block;
-  font-family: 'Neucha', cursive;
+  font-family: var(--font-body);
   font-size: 19px;
   color: var(--paper);
   background: var(--ink);

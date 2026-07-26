@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL;
 ---
 
 <Layout title="Апартамент — Sonar Development Company">
@@ -9,7 +10,7 @@ import Layout from '../../layouts/Layout.astro';
       <h1>Как стигате до ключа</h1>
       <p>Тук ще се разгърне комикс-историята в 5 кадъра — от разговора на масата до ключа във вашата ръка.</p>
       <p class="note"><!-- TODO: scrollytelling прототип, GSAP ScrollTrigger, реални кадри (roadmap стъпка 4) -->В процес на изграждане.</p>
-      <a class="btn" href="/#kontakti">Обадете се →</a>
+      <a class="btn" href={`${base}#kontakti`}>Обадете се →</a>
     </div>
   </section>
 </Layout>
@@ -27,7 +28,7 @@ import Layout from '../../layouts/Layout.astro';
     padding: 40px 48px;
   }
   h1 {
-    font-family: 'Caveat', cursive;
+    font-family: var(--font-display);
     font-size: clamp(36px, 6vw, 56px);
     margin-bottom: 16px;
   }

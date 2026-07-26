@@ -94,7 +94,7 @@
   // Alexander Nevsky Cathedral: real model (CC-BY-4.0, "Alexander Nevsky Cathedral – Sofia" by iwalk,
   // https://sketchfab.com/3d-models/alexander-nevsky-cathedral-sofia-d46c08dacb074203bb629503e7025292 —
   // attribution required, see the map's attribution control). Real height incl. bell tower ~50m.
-  const NEVSKY_MODEL_URL = '/models/nevsky/scene.gltf';
+  const NEVSKY_MODEL_URL = `${import.meta.env.BASE_URL}models/nevsky/scene.gltf`;
   const NEVSKY_REAL_HEIGHT = 80;
   // facing is off — the source model's heading is arbitrary. Tune this in degrees (0-360) and reload;
   // positive turns it clockwise looking straight down from above.
@@ -415,18 +415,18 @@
     position: absolute; z-index: 20; top: 18px; left: 50%; transform: translateX(-50%);
     padding: 8px 22px 6px; text-align: center; max-width: min(92vw, 640px);
   }
-  .map-wrap header h1 { font-family: 'Caveat', cursive; font-size: 30px; letter-spacing: 1px; color: var(--ink); line-height: 1; }
+  .map-wrap header h1 { font-family: var(--font-display); font-size: 30px; letter-spacing: 1px; color: var(--ink); line-height: 1; }
   .map-wrap header p { font-size: 15px; color: var(--dim); }
 
   .map-wrap aside {
     position: absolute; z-index: 20; left: 18px; top: 110px; width: 285px;
     max-height: calc(100% - 200px); overflow-y: auto; padding: 12px;
   }
-  .map-wrap aside h2 { font-family: 'Caveat', cursive; font-size: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
+  .map-wrap aside h2 { font-family: var(--font-display); font-size: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
   .map-wrap .card {
     border: 2px solid var(--ink); padding: 8px 10px; margin-bottom: 10px; cursor: pointer;
     background: var(--paper2); transition: transform .1s, box-shadow .1s;
-    font-family: 'Neucha', cursive;
+    font-family: var(--font-body);
   }
   .map-wrap .card:hover { transform: translate(-2px,-2px); box-shadow: 3px 3px 0 var(--ink); }
   .map-wrap .card .t { font-size: 18px; font-weight: bold; }
@@ -435,7 +435,7 @@
 
   .map-wrap .legend {
     position: absolute; z-index: 20; right: 18px; bottom: 34px; padding: 10px 14px; font-size: 15px;
-    font-family: 'Neucha', cursive;
+    font-family: var(--font-body);
   }
   .map-wrap .legend div { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
   .map-wrap .sw { width: 22px; height: 15px; border: 2px solid var(--ink); flex: none; }
@@ -446,18 +446,18 @@
 
   .map-wrap .hint {
     position: absolute; z-index: 20; left: 18px; bottom: 34px; padding: 6px 12px; font-size: 14px;
-    color: var(--dim); font-family: 'Neucha', cursive;
+    color: var(--dim); font-family: var(--font-body);
   }
 
 
   /* comic popups — MapLibre-injected, must stay global (see note above) */
   .maplibregl-popup-content {
-    font-family: 'Neucha', cursive; background: var(--paper);
+    font-family: var(--font-body); background: var(--paper);
     border: 3px solid var(--ink); border-radius: 0; box-shadow: 5px 5px 0 var(--ink);
     padding: 10px 14px; min-width: 200px;
   }
   .maplibregl-popup-tip { border-top-color: var(--ink) !important; }
-  .pop-t { font-family: 'Caveat', cursive; font-size: 22px; line-height: 1.1; }
+  .pop-t { font-family: var(--font-display); font-size: 22px; line-height: 1.1; }
   .pop-d { font-size: 16px; margin: 4px 0; }
   .pop-a {
     display: inline-block; margin-top: 4px; font-size: 15px; color: var(--paper);
