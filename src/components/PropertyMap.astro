@@ -2,12 +2,12 @@
   <div id="map"></div>
 
   <header class="comic-box">
-    <h1>Sonar — имотите ни в <span class="accent">София</span></h1>
+    <h1>Имотите ни в <span class="accent">София</span></h1>
     <p>черните сгради са имоти за продажба — кликни върху тях</p>
   </header>
 
-  <aside class="comic-box">
-    <h2>Имоти</h2>
+  <aside class="comic-box" id="listings-sheet">
+    <h2 id="sheet-toggle">Имоти <span id="cards-count"></span><span class="chevron" aria-hidden="true">▲</span></h2>
     <div id="cards"></div>
   </aside>
 
@@ -388,9 +388,22 @@
       <div class="d"><span>${l.area}</span><b>${l.price}</b></div>
       <span class="tag">${kindTag[l.kind]}</span>
     </div>`).join('');
+  document.getElementById('cards-count')!.textContent = `(${LISTINGS.length})`;
+
+  // mobile bottom sheet: collapsed by default (see .map-wrap aside in <style> below), tap the
+  // "Имоти" handle to expand/collapse. Harmless on desktop — the .expanded class only affects
+  // the mobile media query, and the sheet is always visible there anyway.
+  const listingsSheet = document.getElementById('listings-sheet')!;
+  document.getElementById('sheet-toggle')!.addEventListener('click', () => {
+    listingsSheet.classList.toggle('expanded');
+  });
+
   document.getElementById('cards')!.addEventListener('click', e => {
     const card = (e.target as HTMLElement).closest('.card') as HTMLElement | null;
-    if (card) showListing(LISTINGS.find(l => l.id === +card.dataset.id!), true);
+    if (card) {
+      showListing(LISTINGS.find(l => l.id === +card.dataset.id!), true);
+      listingsSheet.classList.remove('expanded');
+    }
   });
 </script>
 
@@ -422,7 +435,12 @@
     position: absolute; z-index: 20; left: 18px; top: 110px; width: 285px;
     max-height: calc(100% - 200px); overflow-y: auto; padding: 12px;
   }
-  .map-wrap aside h2 { font-family: var(--font-display); font-size: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
+  .map-wrap aside h2 {
+    font-family: var(--font-display); font-size: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 8px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .map-wrap aside h2 #cards-count { font-family: var(--font-body); font-size: 15px; color: var(--dim); font-weight: normal; }
+  .map-wrap aside h2 .chevron { display: none; margin-left: auto; font-size: 14px; transition: transform .25s; }
   .map-wrap .card {
     border: 2px solid var(--ink); padding: 8px 10px; margin-bottom: 10px; cursor: pointer;
     background: var(--paper2); transition: transform .1s, box-shadow .1s;
@@ -466,7 +484,29 @@
   .maplibregl-popup-close-button { font-size: 20px; color: var(--ink); }
 
   @media (max-width: 720px) {
-    .map-wrap aside { display: none; }
     .map-wrap header h1 { font-size: 22px; }
+
+    /* bottom sheet: collapsed to a peeking "Имоти (N)" handle; tap it to slide the full list up */
+    .map-wrap aside {
+      position: fixed; z-index: 30; left: 0; right: 0; top: auto; bottom: 0; width: auto;
+      max-height: 65vh; max-width: none;
+      display: flex; flex-direction: column;
+      padding: 0 14px 14px;
+      transform: translateY(calc(100% - 54px));
+      transition: transform .3s ease;
+    }
+    .map-wrap aside.expanded { transform: translateY(0); }
+
+    .map-wrap aside h2 {
+      flex: none; margin: 0 -14px; padding: 15px 14px 8px; cursor: pointer; user-select: none;
+      background: var(--paper2);
+    }
+    .map-wrap aside h2 .chevron { display: inline-block; }
+    .map-wrap aside.expanded h2 .chevron { transform: rotate(180deg); }
+
+    .map-wrap #cards { flex: 1; overflow-y: auto; padding-top: 8px; }
+
+    .map-wrap .legend { bottom: 64px; }
+    .map-wrap .hint { display: none; }
   }
 </style>
