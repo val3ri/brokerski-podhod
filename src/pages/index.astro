@@ -77,16 +77,18 @@ const base = import.meta.env.BASE_URL;
       <h2>Текущи <span class="accent">предложения</span></h2>
       <div class="buildings">
         {buildings.map((b, i) => (
-          <a class="building-card comic-box" href={`${base}obekti/${b.slug}`} data-reveal style={`--i:${i}`}>
-            {b.images.length > 0 ? (
-              <Image class="building-photo" src={b.images[0]} alt={b.name} width={320} height={240} />
-            ) : (
-              <div class="building-photo building-photo-placeholder">
-                <!-- TODO: реална снимка на обекта -->
-                <span>снимка</span>
-              </div>
-            )}
-            <span class="building-status">{b.status}</span>
+          <a class="building-card" href={`${base}obekti/${b.slug}`} data-reveal style={`--i:${i}`}>
+            <div class="building-photo-wrap">
+              {b.images.length > 0 ? (
+                <Image class="building-photo" src={b.images[0]} alt={b.name} width={320} height={240} />
+              ) : (
+                <div class="building-photo building-photo-placeholder">
+                  <!-- TODO: реална снимка на обекта -->
+                  <span>снимка</span>
+                </div>
+              )}
+              <span class="building-status">{b.status}</span>
+            </div>
             <strong>{b.name}</strong>
           </a>
         ))}
@@ -108,20 +110,24 @@ const base = import.meta.env.BASE_URL;
   <!-- Contacts: no visual side — a form is the goal, splitting it doesn't help -->
   <section id="kontakti" class="section bg-paper" data-reveal>
     <div class="frame comic-box">
-      <span class="kicker">Контакти</span>
-      <h2>Да <span class="accent">поговорим</span></h2>
-      <p>
-        Телефон: <a href="tel:+359000000000">+359 00 000 0000</a><br />
-        Viber: <a href="viber://chat">+359 00 000 0000</a><br />
-        Офис: ул. „Примерна" 1, София
-        <!-- TODO: реален адрес и телефон -->
-      </p>
-      <form class="contact-form">
-        <input type="text" name="name" placeholder="Име" required />
-        <input type="tel" name="phone" placeholder="Телефон" required />
-        <textarea name="message" placeholder="Съобщение" rows="3"></textarea>
-        <button class="btn" type="submit">Изпрати</button>
-      </form>
+      <div class="contact-grid">
+        <div class="contact-info">
+          <span class="kicker">Контакти</span>
+          <h2>Да <span class="accent">поговорим</span></h2>
+          <p>
+            Телефон: <a href="tel:+359000000000">+359 00 000 0000</a><br />
+            Viber: <a href="viber://chat">+359 00 000 0000</a><br />
+            Офис: ул. „Примерна" 1, София
+            <!-- TODO: реален адрес и телефон -->
+          </p>
+        </div>
+        <form class="contact-form">
+          <input type="text" name="name" placeholder="Име" required />
+          <input type="tel" name="phone" placeholder="Телефон" required />
+          <textarea name="message" placeholder="Съобщение" rows="3"></textarea>
+          <button class="btn" type="submit">Изпрати</button>
+        </form>
+      </div>
     </div>
   </section>
 </Layout>
@@ -259,24 +265,28 @@ const base = import.meta.env.BASE_URL;
   .building-card {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 14px;
-    background: #fff;
+    gap: 10px;
     text-decoration: none;
     color: var(--ink);
-    transition: transform .1s, box-shadow .1s;
   }
-  .building-card:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 8px 8px 0 var(--ink);
+  .building-photo-wrap {
+    position: relative;
+    transition: transform .2s ease;
+  }
+  .building-card:hover .building-photo-wrap {
+    transform: translateY(-4px);
   }
   .building-photo {
     width: 100%;
     aspect-ratio: 4 / 3;
-    margin-bottom: 6px;
     object-fit: cover;
     display: block;
+    border-radius: 4px;
+    box-shadow: 0 10px 26px rgba(44, 43, 40, .14);
+    transition: box-shadow .2s ease;
+  }
+  .building-card:hover .building-photo {
+    box-shadow: 0 16px 34px rgba(44, 43, 40, .2);
   }
   .building-photo-placeholder {
     display: flex;
@@ -288,10 +298,17 @@ const base = import.meta.env.BASE_URL;
     font-size: 14px;
   }
   .building-status {
-    font-size: 12px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--paper);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 11px;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: var(--dim);
+    color: var(--ink);
+    box-shadow: 0 2px 8px rgba(44, 43, 40, .18);
   }
   .building-card strong {
     font-family: var(--font-display);
@@ -316,29 +333,49 @@ const base = import.meta.env.BASE_URL;
   .icon-item svg { width: 44px; height: 44px; }
   .icon-item span { font-size: 15px; color: var(--dim); }
 
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  .contact-info h2 { margin-top: 10px; }
+
   .contact-form {
-    margin-top: 20px;
+    margin-top: 32px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-width: 360px;
+    gap: 18px;
   }
   .contact-form input,
   .contact-form textarea {
     font-family: var(--font-body);
     font-size: 18px;
-    padding: 8px 12px;
-    border: 2px solid var(--ink);
-    background: var(--paper);
+    padding: 8px 4px;
+    border: none;
+    border-bottom: 2px solid var(--dim);
+    background: transparent;
     color: var(--ink);
+    transition: border-color .15s ease;
+  }
+  .contact-form textarea {
+    resize: vertical;
+  }
+  .contact-form input:focus,
+  .contact-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
   }
   .contact-form button {
     align-self: flex-start;
+    margin-top: 6px;
   }
 
   @media (max-width: 700px) {
     .buildings { grid-template-columns: repeat(2, 1fr); }
     .icon-grid { grid-template-columns: 1fr 1fr; }
     .frame { padding: 26px 22px; }
+    .contact-grid { grid-template-columns: 1fr; gap: 24px; }
+    .contact-form { margin-top: 0; }
   }
 </style>
