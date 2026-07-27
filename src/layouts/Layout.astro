@@ -10,6 +10,10 @@ interface Props {
 }
 
 const { title, description = 'Sonar Development Company — недвижими имоти в София', hideFooter = false } = Astro.props;
+
+// absolute URLs — required by Open Graph/Twitter, relative paths are ignored by link-preview crawlers
+const ogImage = new URL(`${import.meta.env.BASE_URL}og-image.png`, Astro.site);
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
 ---
 
 <!doctype html>
@@ -22,6 +26,22 @@ const { title, description = 'Sonar Development Company — недвижими �
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700;800&display=swap" rel="stylesheet" />
     <title>{title}</title>
+
+    <!-- link-preview card shown when this URL is pasted into Slack/iMessage/FB/LinkedIn/Discord etc. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="bg_BG" />
+
+    <!-- Twitter/X reads its own tags rather than falling back to Open Graph -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
   </head>
   <body>
     <Header />
