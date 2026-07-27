@@ -1,6 +1,9 @@
 ---
 // Hero: full-viewport ink map slowly orbiting behind the "Какво търсите?" question and the three
 // story choices. The map is non-interactive (interactive:false) so it never captures page scroll.
+import { Image } from 'astro:assets';
+import sonarLogo from '../assets/sonar-logo-transparent-2.PNG';
+
 const base = import.meta.env.BASE_URL;
 ---
 
@@ -9,7 +12,7 @@ const base = import.meta.env.BASE_URL;
   <div class="hero-veil" aria-hidden="true"></div>
 
   <div class="hero-content">
-    <div><span class="kicker">Sonar · недвижими имоти в София</span></div>
+    <div class="kicker-logo"><Image src={sonarLogo} alt="Sonar" height={110} /></div>
     <div class="bubble hero-q">Какво търсите?</div>
 
     <div class="choices">
@@ -139,7 +142,15 @@ const base = import.meta.env.BASE_URL;
     width: min(880px, 94vw);
     text-align: center;
   }
-  .kicker { background: var(--paper); }
+  .kicker-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .kicker-logo :global(img) {
+    height: clamp(140px, 28vw, 250px);
+    width: auto;
+  }
   .hero-q {
     font-family: var(--font-display);
     font-weight: 800;
