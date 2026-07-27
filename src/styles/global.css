@@ -1,8 +1,10 @@
 :root {
   --paper: #faf9f7;
   --paper2: #f2eee3;
-  --ink: #141414;
+  --ink: #2c2b28;
   --dim: #45413a;
+  --accent: #b8894a;
+  --sonar-teal: #013638;
 
   /* change fonts site-wide here — must include Cyrillic (Patrick Hand was dropped for lacking it) */
   --font-display: 'Montserrat', sans-serif;
@@ -51,9 +53,11 @@ body::after {
 
 h1, h2, h3 {
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 300;
   line-height: 1.15;
 }
+
+.accent { color: var(--accent); }
 
 a {
   color: inherit;

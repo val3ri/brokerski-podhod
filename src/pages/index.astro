@@ -29,7 +29,7 @@ const base = import.meta.env.BASE_URL;
 
   <SplitSection kicker="Кои сме ние" id="koi-sme-nie" plain>
     <Fragment slot="text">
-      <h2>Хората зад агенцията</h2>
+      <h2>Хората зад <span class="accent">агенцията</span></h2>
       <p>Работим с клиенти в София вече години наред — седим на масата с вас, обикаляме имотите заедно, подреждаме документите вместо вас.</p>
     </Fragment>
     <Fragment slot="visual">
@@ -74,7 +74,7 @@ const base = import.meta.env.BASE_URL;
   <section class="section" data-reveal>
     <div class="buildings-wrap">
       <span class="kicker">Обекти</span>
-      <h2>Текущи предложения</h2>
+      <h2>Текущи <span class="accent">предложения</span></h2>
       <div class="buildings">
         {buildings.map((b, i) => (
           <a class="building-card comic-box" href={`${base}obekti/${b.slug}`} data-reveal style={`--i:${i}`}>
@@ -96,7 +96,7 @@ const base = import.meta.env.BASE_URL;
 
   <SplitSection kicker="Имоти" bg="paper2">
     <Fragment slot="text">
-      <h2>Къде са те?</h2>
+      <h2>Къде са <span class="accent">те</span>?</h2>
       <p>Всеки имот за продажба се издига в плътно черно върху рисувана 3D карта на града — вижте къде точно и какво предлагаме.</p>
       <a class="btn" href={`${base}imoti`}>Разгледай картата →</a>
     </Fragment>
@@ -109,7 +109,7 @@ const base = import.meta.env.BASE_URL;
   <section id="kontakti" class="section bg-paper" data-reveal>
     <div class="frame comic-box">
       <span class="kicker">Контакти</span>
-      <h2>Да поговорим</h2>
+      <h2>Да <span class="accent">поговорим</span></h2>
       <p>
         Телефон: <a href="tel:+359000000000">+359 00 000 0000</a><br />
         Viber: <a href="viber://chat">+359 00 000 0000</a><br />

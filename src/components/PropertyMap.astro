@@ -2,7 +2,7 @@
   <div id="map"></div>
 
   <header class="comic-box">
-    <h1>Sonar — имотите ни в София</h1>
+    <h1>Sonar — имотите ни в <span class="accent">София</span></h1>
     <p>черните сгради са имоти за продажба — кликни върху тях</p>
   </header>
 
@@ -27,7 +27,7 @@
   import * as THREE from 'three';
   import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-  const PAPER = '#eae5d9', INK = '#141414';
+  const PAPER = '#eae5d9', INK = '#2c2b28';
 
   // rectangle building footprint: center lon/lat, width/depth in meters
   function rect(lon: number, lat: number, w: number, d: number) {
@@ -441,8 +441,8 @@
   .map-wrap .sw { width: 22px; height: 15px; border: 2px solid var(--ink); flex: none; }
   .map-wrap .sw.b { background: var(--ink); }
   .map-wrap .sw.g { background: #d6cfbe; }
-  .map-wrap .sw.p { border-style: dashed; background: repeating-linear-gradient(45deg, transparent 0 4px, #14141455 4px 6px); }
-  .map-wrap .sw.a { border-radius: 50%; border-style: dotted; background: #14141422; }
+  .map-wrap .sw.p { border-style: dashed; background: repeating-linear-gradient(45deg, transparent 0 4px, #2c2b2855 4px 6px); }
+  .map-wrap .sw.a { border-radius: 50%; border-style: dotted; background: #2c2b2822; }
 
   .map-wrap .hint {
     position: absolute; z-index: 20; left: 18px; bottom: 34px; padding: 6px 12px; font-size: 14px;

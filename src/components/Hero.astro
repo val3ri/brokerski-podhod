@@ -1,7 +1,6 @@
 ---
 // Hero: full-viewport ink map slowly orbiting behind the "Какво търсите?" question and the three
 // story choices. The map is non-interactive (interactive:false) so it never captures page scroll.
-import { Image } from 'astro:assets';
 import sonarLogo from '../assets/sonar-logo-transparent-2.PNG';
 
 const base = import.meta.env.BASE_URL;
@@ -12,12 +11,12 @@ const base = import.meta.env.BASE_URL;
   <div class="hero-veil" aria-hidden="true"></div>
 
   <div class="hero-content">
-    <div class="kicker-logo"><Image src={sonarLogo} alt="Sonar" height={110} /></div>
-    <div class="bubble hero-q">Какво търсите?</div>
+    <div class="kicker-logo" style={`--logo-url: url(${sonarLogo.src})`} role="img" aria-label="Sonar"></div>
+    <div class="bubble hero-q">Какво <span class="accent">търсите</span>?</div>
 
     <div class="choices">
       <a class="choice-card comic-box" href={`${base}istoria/apartament`} data-intent="apartment">
-        <h3>Имот</h3>
+        <h3>Апартамент</h3>
         <p>Кратка история как стигате до ключа</p>
       </a>
       <a class="choice-card comic-box" href={`${base}istoria/parcel`} data-intent="plot">
@@ -38,7 +37,7 @@ const base = import.meta.env.BASE_URL;
   import maplibregl from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
 
-  const PAPER = '#eae5d9', INK = '#141414';
+  const PAPER = '#eae5d9', INK = '#2c2b28';
 
   const map = new maplibregl.Map({
     container: 'hero-map',
@@ -143,17 +142,22 @@ const base = import.meta.env.BASE_URL;
     text-align: center;
   }
   .kicker-logo {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 18px;
-  }
-  .kicker-logo :global(img) {
+    margin: 0 auto 18px;
     height: clamp(140px, 28vw, 250px);
-    width: auto;
+    aspect-ratio: 321 / 148;
+    background-color: var(--sonar-teal);
+    mask-image: var(--logo-url);
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-image: var(--logo-url);
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
   }
   .hero-q {
     font-family: var(--font-display);
-    font-weight: 800;
+    font-weight: 300;
     font-size: clamp(40px, 8vw, 76px);
     line-height: 1.1;
     padding: 10px 34px;

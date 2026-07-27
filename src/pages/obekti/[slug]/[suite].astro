@@ -20,7 +20,7 @@ const base = import.meta.env.BASE_URL;
     <div class="frame comic-box">
       <a class="back-link" href={`${base}obekti/${building.slug}`}>← Обратно към {building.name}</a>
       <span class="kicker">{suite.type} · {suite.size}</span>
-      <h1>Апартамент №{suite.number}</h1>
+      <h1><span class="accent">Апартамент</span> №{suite.number}</h1>
       <p class="note">
         <!-- TODO: реален план, снимки, цена, етаж, изложение, описание -->
         Подробна информация за този апартамент предстои. Свържете се с нас за повече детайли.
