@@ -48,7 +48,7 @@ const available = (f: number) => building.suites.filter((s) => s.floors.includes
 const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f));
 ---
 
-<div class="viewer" id="viewer" data-mode={has3D ? '3d' : 'image'}>
+<div class="viewer" id="viewer" data-mode={has3D ? '3d' : 'image'} data-plan-style="render">
   <script type="application/json" class="viewer-data" set:html={JSON.stringify(data)} />
 
   <div class="stage comic-box">
@@ -67,8 +67,9 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
         </div>
       )}
       {floors.filter((f) => f.plan).map((f) => (
-        <div class="image-box plan-view" data-floor={f.number} hidden style={`--ratio: ${f.plan!.width / f.plan!.height}`}>
-          <Image src={f.plan!} alt={`План — ${f.label}`} width={1600} />
+        <div class={`image-box plan-view${f.render ? ' has-render' : ''}`} data-floor={f.number} hidden style={`--ratio: ${f.plan!.width / f.plan!.height}`}>
+          <Image class="floor-plan-img" src={f.plan!} alt={`План — ${f.label}`} width={1600} />
+          {f.render && <Image class="floor-render-img" src={f.render} alt={`Визуализация — ${f.label}`} width={1800} />}
           {f.units && (
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Апартаменти">
               {Object.entries(f.units).map(([unit, outline]) => (
@@ -90,12 +91,18 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
               {nameOf[unit] ?? unit}
             </span>
           ))}
+          {f.render && <span class="render-note">Илюстративна визуализация</span>}
         </div>
       ))}
     </div>
     <div class="tooltip" hidden></div>
 
     <button type="button" class="plan-back" hidden>← Цялата сграда</button>
+    <button type="button" class="zoom-out" hidden>← Целия етаж</button>
+    <div class="plan-style" role="group" aria-label="Изглед на етажа" hidden>
+      <button type="button" data-style="render">Визуализация</button>
+      <button type="button" data-style="plan">План</button>
+    </div>
     <p class="plan-label" hidden></p>
     {has3D && facadeImage && (
       <div class="mode-toggle" role="group" aria-label="Изглед">
@@ -150,6 +157,7 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
     const hint = $('.stage-hint')!, back = $('.plan-back')!, planLabel = $('.plan-label')!, planLink = $<HTMLAnchorElement>('.plan-link')!;
     const facadeView = $('.facade-view');
     const planViews = $$('.plan-view');
+    const zoomOut = $('.zoom-out')!, planStyle = $('.plan-style')!;
     const floorBtns = $$<HTMLButtonElement>('.floor-btn');
     const floorShapes = $$<SVGPolygonElement>('.floor-shape');
     const unitShapes = $$<SVGPolygonElement>('.unit-shape');
@@ -173,8 +181,11 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
       const planned = root.dataset.mode === 'image' && state.floor !== null && !!floorInfo(state.floor)?.hasPlan;
       if (facadeView) facadeView.hidden = planned;
       planViews.forEach(v => v.hidden = !planned || +v.dataset.floor! !== state.floor);
-      back.hidden = !planned;
+      back.hidden = !planned || !!state.unit;
       planLabel.hidden = !planned;
+      const view = planned ? planViews.find(v => +v.dataset.floor! === state.floor) : undefined;
+      planStyle.hidden = !view?.classList.contains('has-render');
+      zoomTo(view);
       if (planned) planLabel.textContent = floorTitle(state.floor!);
       root.classList.toggle('plan-open', planned);
     }
@@ -234,6 +245,31 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
     floorShapes.forEach(p => p.addEventListener('click', () => set(+p.dataset.floor!)));
     unitShapes.forEach(p => p.addEventListener('click', () => set(state.floor, p.dataset.unit!, { scroll: true })));
     back.addEventListener('click', () => set(null));
+    zoomOut.addEventListener('click', () => set(state.floor));
+
+    // zoom the floor onto the picked apartment (its outline's bounding box fills ~80% of the stage);
+    // transform-origin 0 0 + translate in % of the box itself, so it works at any stage size
+    function zoomTo(view: HTMLElement | undefined) {
+      planViews.forEach(v => { if (v !== view) v.style.transform = ''; });
+      const shape = view && state.unit ? view.querySelector<SVGPolygonElement>(`.unit-shape[data-unit="${state.unit}"]`) : null;
+      zoomOut.hidden = !shape;
+      if (!view) return;
+      if (!shape) { view.style.transform = ''; return; }
+      const p = shape.getAttribute('points')!.trim().split(/\s+/).map(xy => xy.split(',').map(Number));
+      const xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      const s = Math.min(3.2, 80 / (x1 - x0), 80 / (y1 - y0));
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      view.style.transform = `translate(${50 - cx * s}%, ${50 - cy * s}%) scale(${s})`;
+    }
+
+    planStyle.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.style === root.dataset.planStyle);
+      b.addEventListener('click', () => {
+        root.dataset.planStyle = b.dataset.style!;
+        planStyle.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      });
+    });
     $('.units')!.addEventListener('click', e => {
       const chip = (e.target as HTMLElement).closest<HTMLElement>('.unit-chip');
       if (chip) set(state.floor, chip.dataset.unit!, { scroll: true });
@@ -361,13 +397,37 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
   .unit-tag.reserved { background: #6f6b60; }
   @container (max-width: 520px) { .room { display: none; } }
 
+  /* zoom onto an apartment */
+  .plan-view { transform-origin: 0 0; transition: transform .6s cubic-bezier(.4, 0, .2, 1); }
+  @media (prefers-reduced-motion: reduce) { .plan-view { transition: none; } }
+
+  /* AI visualisation stacked exactly over the plan (same pixels); the switch picks one */
+  .plan-view :global(.floor-render-img) { position: absolute; inset: 0; }
+  .viewer[data-plan-style='plan'] .plan-view :global(.floor-render-img),
+  .viewer[data-plan-style='plan'] .render-note { display: none; }
+  .viewer[data-plan-style='render'] .has-render .room { color: #fff; text-shadow: 0 0 3px rgba(0, 0, 0, .8); }
+  .viewer[data-plan-style='render'] .has-render .unit-shape:not(.active):not(:hover) { fill-opacity: 0; }
+  /* on the render, sold apartments fade out under a white wash instead of the grey tint */
+  .viewer[data-plan-style='render'] .has-render .unit-shape.sold:not(.active) { fill: #fff; fill-opacity: .55; }
+  .render-note {
+    position: absolute; right: 1%; bottom: 1%; font-size: clamp(8px, .9cqw, 12px); color: var(--dim);
+    background: color-mix(in srgb, #fff 80%, transparent); padding: .1em .5em; pointer-events: none;
+  }
+
+  .zoom-out { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 5px 12px; font-size: 14px; box-shadow: 3px 3px 0 var(--ink); }
+  .plan-style { position: absolute; z-index: 2; bottom: 10px; right: 12px; display: flex; }
+  .plan-style button { padding: 4px 12px; font-size: 13px; }
+  .plan-style button + button { border-left: 0; }
+  .plan-style button.active { background: var(--ink); color: var(--paper); }
+  .zoom-out[hidden], .plan-style[hidden] { display: none; }
+
   .tooltip {
     position: absolute; z-index: 3; pointer-events: none; transform: translate(12px, -130%);
     background: var(--paper); border: 2px solid var(--ink); padding: 3px 9px; font-size: 14px; white-space: nowrap;
   }
   .mode-toggle { position: absolute; z-index: 2; top: 12px; left: 12px; display: flex; }
   .plan-open .mode-toggle { display: none; }
-  .mode-toggle button, .floor-btn, .plan-back, .viewer :global(.unit-chip) {
+  .mode-toggle button, .floor-btn, .plan-back, .zoom-out, .plan-style button, .viewer :global(.unit-chip) {
     font-family: var(--font-body); color: var(--ink); background: var(--paper);
     border: 2px solid var(--ink); cursor: pointer;
   }

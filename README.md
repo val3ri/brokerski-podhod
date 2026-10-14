@@ -100,6 +100,15 @@ python3 scripts/clean-floor-plans.py "sonar-files/архитектура сгр�
 
 It uses the same crop for every floor, so the apartment outlines in `buildings.ts` stay valid. The layer names it keeps are listed at the top of the script, and other architects' PDFs may need them adjusted.
 
+**Visualisations of each floor (optional):** an AI-rendered version of the floor plan, shown by default with a "Визуализация / План" switch.
+1. Make the input: `python3 scripts/align-render.py --make-input src/assets/<slug>/floor-N.png <input.png>`.
+2. Generate the render with an AI image tool. The prompt is in `sonar-files/ai-renders/PROMPT.md`, and the key instruction is to keep the walls, doors and windows exactly in place.
+3. Align it back onto the plan: `python3 scripts/align-render.py src/assets/<slug>/floor-N.png <render.png> src/assets/<slug>/render-floor-N.jpg`. Open the `.check.jpg` it writes: the red plan walls must sit on the render's walls. If the AI reframed the image a lot, add `--init scale,tx,ty --roi x0,y0,x1,y1`; see the script's docstring.
+4. Set `render:` on that floor in `buildings.ts`. The apartment outlines then fit the render too.
+5. Always compare the render with the plan. AI can move a door or invent a wall. The site labels renders "Илюстративна визуализация".
+
+The scripts need `pip install opencv-python-headless numpy pillow`.
+
 ## 3D models (the viewer on `/obekti/<slug>`)
 
 The top of each building page is a viewer. You click a floor, then an apartment, and the apartment's details appear underneath. Set it with the building's `viewer` field. It uses the first option that's set:
