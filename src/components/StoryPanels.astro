@@ -1,0 +1,151 @@
+---
+// Scroll-through comic: one full-screen panel per scene, captions + speech bubbles as live text
+// over the artwork (stacked under the picture on phones). Bubbles pop in when the panel arrives.
+// CSS scroll-snap + IntersectionObserver — no animation library; respects prefers-reduced-motion.
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import type { Story } from '../data/stories';
+
+interface Props { story: Story }
+const { story } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+const art = import.meta.glob<{ default: ImageMetadata }>('../assets/istoria/*/*.{jpg,jpeg,png,webp}', { eager: true });
+const artFor = (n: number) =>
+  Object.entries(art).find(([path]) => {
+    const [dir, file] = path.split('/').slice(-2);
+    return dir === story.slug && file.split('.')[0] === String(n);
+  })?.[1].default;
+const WHO = { agent: 'Агентът', client: 'Клиентът', buyer: 'Купувачът' };
+---
+
+<div class="story">
+  <header class="story-intro">
+    <span class="kicker">{story.kicker}</span>
+    <h1>{story.title}</h1>
+    <p class="scroll-cue">превъртете надолу ↓</p>
+  </header>
+
+  {story.panels.map((p, i) => {
+    const img = artFor(i + 1);
+    return (
+      <section class={`panel${p.cta ? ' cta' : ''}`} data-panel>
+        <div class="panel-frame">
+          <div class="art">
+            {img ? (
+              <Image src={img} alt={p.scene} width={1600} />
+            ) : (
+              <div class="storyboard"><span>кадър {i + 1}</span><p>{p.scene}</p></div>
+            )}
+          </div>
+          {p.caption && <p class="caption">{p.caption}</p>}
+          {p.bubbles?.map((b, k) => (
+            <p class={`bubble ${b.who}`} style={`left:${b.x}%;top:${b.y}%;--d:${k}`}>
+              <span class="sr-only">{WHO[b.who]}: </span>{b.text}
+            </p>
+          ))}
+          {p.cta && (
+            <div class="cta-box">
+              <p class="cta-title">обадете ни се.</p>
+              <div class="cta-actions">
+                <a class="btn" href="tel:+359000000000">Обадете се</a>
+                <a class="btn ghost" href="viber://chat">Viber</a>
+                <a class="btn ghost" href={`${base}#kontakti`}>Пишете ни</a>
+              </div>
+            </div>
+          )}
+        </div>
+        <span class="counter" aria-hidden="true">{i + 1} / {story.panels.length}</span>
+      </section>
+    );
+  })}
+</div>
+
+<script>
+  // pop the bubbles in as each panel scrolls into view (once)
+  const panels = document.querySelectorAll<HTMLElement>('[data-panel]');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+    panels.forEach(p => p.classList.add('in'));
+  } else {
+    const io = new IntersectionObserver(entries => entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    }), { threshold: 0.45 });
+    panels.forEach(p => io.observe(p));
+  }
+</script>
+
+<style>
+  :global(html:has(.story)) { scroll-snap-type: y proximity; }
+
+  .story-intro {
+    min-height: calc(60vh); display: flex; flex-direction: column; justify-content: center;
+    align-items: flex-start; width: min(1100px, 92vw); margin: 0 auto; padding: 40px 0;
+  }
+  .story-intro h1 { font-size: clamp(36px, 6vw, 64px); margin: 14px 0 10px; }
+  .scroll-cue { color: var(--dim); font-size: 16px; }
+
+  .panel {
+    min-height: calc(100svh - 66px); scroll-snap-align: center; position: relative;
+    display: grid; place-items: center; padding: 24px 0 40px;
+  }
+  .panel-frame {
+    position: relative; width: min(1100px, 92vw); aspect-ratio: 3 / 2; max-height: calc(100svh - 120px);
+    border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); background: var(--paper2);
+  }
+  .art, .art :global(img) { width: 100%; height: 100%; display: block; }
+  .art :global(img) { object-fit: cover; }
+  .storyboard {
+    width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 8% 14%; text-align: center; color: var(--dim);
+    background: repeating-linear-gradient(-45deg, transparent 0 14px, rgba(44, 43, 40, .04) 14px 16px);
+  }
+  .storyboard span { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+  .storyboard p { font-size: clamp(16px, 2vw, 22px); font-style: italic; }
+
+  .caption {
+    position: absolute; top: 0; left: 0; max-width: 46%;
+    background: var(--sonar-teal); color: #fff; padding: 10px 16px; font-size: clamp(14px, 1.6vw, 20px);
+    font-weight: 500; letter-spacing: .02em;
+  }
+
+  .bubble {
+    position: absolute; max-width: 36%; background: #fff; color: var(--ink);
+    border: 2.5px solid var(--ink); border-radius: 22px; padding: 12px 16px;
+    font-size: clamp(14px, 1.5vw, 19px); line-height: 1.35; box-shadow: 4px 4px 0 rgba(0, 0, 0, .15);
+    opacity: 0; transform: translateY(10px) scale(.96);
+    transition: opacity .45s ease, transform .45s ease; transition-delay: calc(.35s + var(--d) * .6s);
+  }
+  /* tail: agent's points up-left from the right side, client's down-left */
+  .bubble::after {
+    content: ''; position: absolute; width: 18px; height: 18px; background: #fff;
+    border: 2.5px solid var(--ink); border-top: 0; border-left: 0; bottom: -11px; left: 28px; transform: rotate(45deg);
+  }
+  .bubble.agent { border-color: var(--sonar-teal); }
+  .bubble.agent::after { border-color: var(--sonar-teal); left: auto; right: 28px; }
+  .panel.in .bubble { opacity: 1; transform: none; }
+
+  .cta-box {
+    position: absolute; left: 6%; bottom: 8%; background: var(--paper); border: 3px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink); padding: 18px 22px; max-width: 60%;
+  }
+  .cta-title { font-size: clamp(22px, 3vw, 36px); margin-bottom: 12px; }
+  .cta-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn.ghost { background: var(--paper); color: var(--ink); border: 2px solid var(--ink); }
+  .cta .caption { font-size: clamp(18px, 2.4vw, 30px); }
+
+  .counter { position: absolute; right: max(4vw, calc(50% - 550px)); bottom: 10px; font-size: 13px; color: var(--dim); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  @media (prefers-reduced-motion: reduce) { .bubble { transition: none; } }
+
+  /* phones: picture on top, caption + bubbles stacked underneath in reading order */
+  @media (max-width: 700px) {
+    .panel { min-height: auto; padding: 18px 0 30px; scroll-snap-align: start; }
+    .panel-frame { aspect-ratio: auto; max-height: none; display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; }
+    .art { aspect-ratio: 3 / 2; height: auto; }
+    .caption, .bubble, .cta-box { position: static; max-width: none; margin: 0 12px; }
+    .caption { margin: 0; order: -1; }
+    .bubble.agent { align-self: flex-end; margin-left: 40px; }
+    .bubble.client, .bubble.buyer { margin-right: 40px; }
+  }
+</style>
