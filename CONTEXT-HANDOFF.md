@@ -64,7 +64,7 @@ Now `src/components/PropertyMap.astro` (originally `demo-map/index.html`, since 
 
 - Custom MapLibre style written from scratch: paper background, grain via inline-SVG `feTurbulence` overlay, ink roads, OMT `building` layer as pale extrusions (`render_height`), neighborhood labels (`Noto Sans Italic` — OpenFreeMap glyphs only ship Noto stacks).
 - 4 placeholder обекти in `buildings.ts`: 2 exact (black extrusions + floating "от …€" price labels), 1 approximate (Иван Вазов; dotted circle), 1 plot (Панчарево; hatched `fill-pattern` from a runtime canvas image + dashed outline). Helper fns: `rect()`, `poly()` (meter-offset footprints), `circle()`.
-- Обект 3 (Изток) demonstrates a **multi-part "blueprint" footprint**: L-shaped wings + corner tower + set-back penthouse via per-feature `base`/`height` on `fill-extrusion`.
+- (Removed with the demo buildings) a former demo listing showed a **multi-part "blueprint" footprint**: L-shaped wings + corner tower + set-back penthouse via per-feature `base`/`height` on `fill-extrusion`.
 - Comic-styled popups (overridden `.maplibregl-popup-content`) linking to `/obekti/<slug>`, sidebar cards with `flyTo`, mobile bottom sheet. Hand-tint washes are baked in (the toggle was removed after the decision).
 - **Gotcha fixed once already:** the MapLibre global is `maplibregl`, not `maplibre`.
 - **Font gotcha:** any font must have **Cyrillic** (Patrick Hand was dropped for lacking it). Site fonts are set once in `src/styles/global.css` (`--font-display`, `--font-body`) — currently Montserrat as a placeholder.
