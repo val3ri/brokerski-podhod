@@ -1,43 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-const base = import.meta.env.BASE_URL;
+import StoryPanels from '../../components/StoryPanels.astro';
+import { stories } from '../../data/stories';
+
+const story = stories.find((s) => s.slug === 'parcel')!;
 ---
 
-<Layout title="Парцел — Sonar Development Company">
-  <section class="section">
-    <div class="frame comic-box">
-      <span class="kicker">Историята · Парцел</span>
-      <h1>От идеята до готовата <span class="accent">сграда</span></h1>
-      <p>Тук ще се разгърне комикс-историята в 7 кадъра — от чертежите на масата до продадените апартаменти.</p>
-      <p class="note"><!-- TODO: scrollytelling прототип, GSAP ScrollTrigger, реални кадри (roadmap стъпка 4) -->В процес на изграждане.</p>
-      <a class="btn" href={`${base}#kontakti`}>Обадете се →</a>
-    </div>
-  </section>
+<Layout title={`${story.title} — Sonar Development Company`}>
+  <StoryPanels story={story} />
 </Layout>
-
-<style>
-  .section {
-    min-height: calc(100vh - 66px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-  }
-  .frame {
-    width: min(880px, 94vw);
-    padding: 40px 48px;
-  }
-  h1 {
-    font-family: var(--font-display);
-    font-size: clamp(36px, 6vw, 56px);
-    margin-bottom: 16px;
-  }
-  p {
-    font-size: 20px;
-    color: var(--dim);
-  }
-  .note {
-    margin: 14px 0 22px;
-    font-style: italic;
-  }
-</style>
