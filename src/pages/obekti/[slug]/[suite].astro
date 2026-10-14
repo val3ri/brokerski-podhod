@@ -1,6 +1,7 @@
 ---
+import { Image } from 'astro:assets';
 import Layout from '../../../layouts/Layout.astro';
-import { buildings } from '../../../data/buildings';
+import { buildings, STATUS_LABEL, suiteName, floorsText, eur } from '../../../data/buildings';
 
 export function getStaticPaths() {
   return buildings.flatMap((building) =>
@@ -13,56 +14,112 @@ export function getStaticPaths() {
 
 const { building, suite } = Astro.props;
 const base = import.meta.env.BASE_URL;
+const name = suiteName(suite);
+const sold = suite.status === 'sold';
+// opens the building viewer on this apartment's (first) floor with it selected
+const viewerHref = `${base}obekti/${building.slug}?floor=${suite.floors[0]}&unit=${suite.number}#viewer`;
+const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
 ---
 
-<Layout title={`Апартамент №${suite.number} — ${building.name} — Sonar Development Company`}>
+<Layout title={`${name} — ${building.name} — Sonar Development Company`}>
   <section class="section">
-    <div class="frame comic-box">
-      <a class="back-link" href={`${base}obekti/${building.slug}`}>← Обратно към {building.name}</a>
-      <span class="kicker">{suite.type} · {suite.size}</span>
-      <h1><span class="accent">Апартамент</span> №{suite.number}</h1>
-      <p class="note">
-        <!-- TODO: реален план, снимки, цена, етаж, изложение, описание -->
-        Подробна информация за този апартамент предстои. Свържете се с нас за повече детайли.
-      </p>
-      <a class="btn" href={`${base}#kontakti`}>Запитване →</a>
+    <div class="page">
+      <a class="back-link" href={viewerHref}>← Обратно към {building.name}</a>
+
+      <div class="grid">
+        <div class="plan-col">
+          {suite.plan ? (
+            <div class="plan comic-box">
+              <Image src={suite.plan} alt={`Разпределение — ${name}`} width={1100} />
+            </div>
+          ) : (
+            <div class="plan plan-placeholder comic-box"><span>разпределението предстои</span></div>
+          )}
+        </div>
+
+        <div class="info-col">
+          <span class="kicker">{suite.type} · {suite.floors.length > 1 ? 'етажи' : 'етаж'} {floorsText(suite)}</span>
+          <h1>{name}</h1>
+          <p class="facts">
+            <span class={`status ${suite.status}`}>{STATUS_LABEL[suite.status]}</span>
+            {!sold && <b>{suite.price ? `от ${suite.price}` : 'цена при запитване'}</b>}
+          </p>
+
+          <dl class="details">
+            <dt>Площ (бруто)</dt><dd>{suite.size}</dd>
+            {suite.details?.map(([k, v]) => <><dt>{k}</dt><dd>{v}</dd></>)}
+          </dl>
+
+          <div class="actions">
+            <a class="btn" href={`${base}#kontakti`}>Запитване →</a>
+            {building.viewer && <a class="viewer-link" href={viewerHref}>Виж го в сградата →</a>}
+          </div>
+        </div>
+      </div>
+
+      {!sold && suite.schemes && suite.schemes.length > 0 && (
+        <div class="schemes">
+          <h2>Цени по схеми на плащане</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Схема</th><th>Предв. договор</th><th>Акт 14</th><th>Акт 15</th><th>Акт 16</th><th>Цена / м²</th><th>Крайна цена</th></tr>
+              </thead>
+              <tbody>
+                {suite.schemes.map((sc, i) => (
+                  <tr>
+                    <td>№ {i + 1}</td>
+                    {sc.split.map((v) => <td>{pct(v)}</td>)}
+                    <td>{sc.perM2 ? eur(sc.perM2) : '—'}</td>
+                    <td><b>{sc.total ? eur(sc.total) : '—'}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p class="fine">Процентите показват каква част от цената се плаща при всеки етап на строителството.</p>
+        </div>
+      )}
     </div>
   </section>
 </Layout>
 
 <style>
-  .section {
-    min-height: calc(100vh - 66px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-  }
-  .frame {
-    width: min(720px, 94vw);
-    padding: 40px 48px;
-  }
-  .back-link {
-    display: block;
-    font-size: 15px;
-    color: var(--dim);
-    text-decoration: none;
-    margin-bottom: 16px;
-  }
-  .back-link:hover {
-    text-decoration: underline;
-  }
-  h1 {
-    font-size: clamp(30px, 4vw, 42px);
-    margin: 8px 0 16px;
-  }
-  .note {
-    font-size: 18px;
-    color: var(--dim);
-    margin-bottom: 20px;
-  }
+  .section { display: flex; justify-content: center; padding: 40px 20px 70px; }
+  .page { width: min(1180px, 94vw); min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+  /* let the wide price table scroll inside .table-wrap instead of stretching the page */
+  .grid > *, .schemes { min-width: 0; }
+  .back-link { font-size: 15px; color: var(--dim); text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
 
-  @media (max-width: 700px) {
-    .frame { padding: 26px 22px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 40px; align-items: start; }
+  .plan { background: #fff; padding: 12px; }
+  .plan :global(img) { display: block; width: 100%; height: auto; }
+  .plan-placeholder { aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--dim); font-style: italic; }
+
+  h1 { font-size: clamp(30px, 4vw, 42px); margin: 8px 0 12px; }
+  .facts { display: flex; align-items: center; gap: 14px; font-size: 22px; margin-bottom: 20px; }
+  .status { font-size: 14px; border: 1.5px solid var(--ink); padding: 1px 8px; }
+  .status.available { background: var(--ink); color: var(--paper); }
+  .status.reserved { background: #d6cfbe; }
+
+  .details { display: grid; grid-template-columns: auto 1fr; gap: 6px 24px; font-size: 17px; margin-bottom: 26px;
+    border-top: 2px solid var(--ink); padding-top: 14px; }
+  .details dt { color: var(--dim); }
+  .details dd { font-weight: 500; }
+  .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; }
+  .viewer-link { color: var(--ink); font-size: 16px; }
+
+  .schemes h2 { font-size: 26px; margin-bottom: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; border: 2px solid var(--ink); font-size: 16px; }
+  th { text-align: left; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .5px;
+    padding: 8px 12px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+  td { padding: 9px 12px; border-top: 1px solid #d8d4c8; white-space: nowrap; }
+  tbody tr:hover td { background: var(--paper2); }
+  .fine { font-size: 14px; color: var(--dim); margin-top: 8px; }
+
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; gap: 24px; }
   }
 </style>

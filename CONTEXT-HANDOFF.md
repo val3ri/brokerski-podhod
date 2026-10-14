@@ -1,6 +1,6 @@
 # Context Handoff — Real Estate Agency Website ("Брокерски подход")
 
-> **Purpose of this file:** complete handoff of an AI co-design/co-development session (July 2026).
+> **Purpose of this file:** complete handoff of AI co-design/co-development sessions (July 2026, updated Sep 2026).
 > Paste or attach this file at the start of a new session so the assistant can continue with full context.
 > **Canonical project plan: [Planning.md](Planning.md)** — read it first; it holds all design decisions in detail.
 > This file adds everything *around* the plan: reasoning, project state, workflows, gotchas, and open items.
@@ -16,25 +16,34 @@
 
 ## 2. Project in one paragraph
 
-A real estate agency site (apartments, houses, building plots in Sofia) that differentiates by *selling trust and process, not listings*: visitors are greeted with "Какво търсите?" and the apartment/plot paths lead to short scrollytelling **comic stories** (black-ink indie graphic novel style on cream paper `#eae5d9`) showing the client's journey with the agency. The properties map is a tilted **3D "ink city"** — Sofia as a pale sketch with listing buildings rising in solid black. Full concept, art direction, structure, tech stack, and roadmap: see `Planning.md`.
+A real estate agency site (apartments, houses, building plots in Sofia) that differentiates by *selling trust and process, not listings*: visitors are greeted with "Какво търсите?" and the apartment/plot paths lead to short scrollytelling **comic stories** (black-ink comics, now in a business/corporate style per client feedback) showing the client's journey with the agency. The properties map is a tilted **3D "ink city"** — Sofia as a pale sketch with listing buildings rising in solid black. Full concept, art direction, structure, tech stack, and roadmap: see `Planning.md`.
 
-## 3. Repository state (as of 2026-07-04)
+## 3. Repository state (as of 2026-09-24)
+
+Real **Astro** site at the repo root, deployed to GitHub Pages on every push to `main`
+(https://val3ri.github.io/brokerski-podhod/). How to run it: see [README.md](README.md).
 
 ```
 brokerski_podhod/
-├── claude-prompt.txt        # the user's original idea brief (source of the vision)
-├── Planning.md              # ⭐ canonical plan — all decisions live here
-├── CONTEXT-HANDOFF.md       # this file
-├── demo-map/
-│   └── index.html           # ✅ working 3D ink-map demo (details in §5)
-└── presentation/
-    ├── index.html                      # 8-slide client pitch deck, Bulgarian, on-brand
-    ├── Brokerski-podhod-koncepcia.html # identical copy with client-friendly filename
-    └── Brokerski-podhod-koncepcia.pdf  # PDF export (388 KB, 8 pages)
+├── README.md / Planning.md / CONTEXT-HANDOFF.md / CLAUDE.md
+├── notex.txt                 # client feedback notes (Bulgarian) — source of the Sep 2026 direction update
+├── claude-prompt.txt         # the user's original idea brief
+├── astro.config.mjs          # site + base '/brokerski-podhod/' for GitHub Pages
+├── .github/workflows/deploy.yml
+├── src/
+│   ├── pages/index.astro     # homepage: hero, team, services, обекти grid, map teaser, contacts
+│   ├── pages/imoti/          # full-screen 3D ink map + filters (PropertyMap.astro)
+│   ├── pages/obekti/         # [slug].astro building page, [slug]/[suite].astro apartment page
+│   ├── pages/istoria/        # apartament / parcel — placeholders, comics not built
+│   ├── data/buildings.ts     # ⭐ single source for grid, detail pages and map
+│   ├── components/           # Header, Footer, Hero (orbiting map), PropertyMap, PropertyPreviewMap, SplitSection
+│   └── styles/global.css     # color + font variables
+├── public/models/nevsky/     # glTF model of Alexander Nevsky (CC BY 4.0, attribution in map)
+└── presentation/             # July 2026 pitch deck — old branding, not part of the site
 ```
 
-- Git: repo initialized, single commit "first commit" on `main`; the work above may be uncommitted — check `git status`.
-- Nothing deployed anywhere yet. No build system, no framework yet — everything so far is standalone HTML.
+- Brand is now **Sonar Development Company**; „Брокерски подход“ is only the codename.
+- `demo-map/` was removed — the map lives in `src/components/PropertyMap.astro`.
 
 ## 4. Decision log (chronological, with reasoning)
 
@@ -51,16 +60,17 @@ brokerski_podhod/
 
 ## 5. The map demo — technical notes
 
-`demo-map/index.html` — fully self-contained, no build. To run: any static server, e.g. `python3 -m http.server 8642` in the repo root → `http://localhost:8642/demo-map/` (server from the session was stopped; restart it). Needs internet (CDN + tiles).
+Now `src/components/PropertyMap.astro` (originally `demo-map/index.html`, since removed). Run with `npm run dev` → `http://localhost:4321/brokerski-podhod/imoti`. Needs internet (tiles + glyphs). Listing data comes from `src/data/buildings.ts`, serialized into a `<script type="application/json" id="map-data">` in the frontmatter (client scripts can't import the image-bearing data module directly). Filters use `map.setFilter` on the slug of each feature across all listing layers.
 
 - Custom MapLibre style written from scratch: paper background, grain via inline-SVG `feTurbulence` overlay, ink roads, OMT `building` layer as pale extrusions (`render_height`), neighborhood labels (`Noto Sans Italic` — OpenFreeMap glyphs only ship Noto stacks).
-- 5 fake listings in a `LISTINGS` array: 3 exact (black extrusions + floating price `symbol` labels), 1 plot (Панчарево; hatched `fill-pattern` from a runtime canvas image + dashed outline), 1 approximate (Иван Вазов; dotted circle). Helper fns: `rect()`, `poly()` (meter-offset footprints), `circle()`.
-- Listing 3 (Изток) demonstrates a **multi-part "blueprint" footprint**: L-shaped wings + corner tower + set-back penthouse via per-feature `base`/`height` on `fill-extrusion`.
-- Comic-styled popups (overridden `.maplibregl-popup-content`), sidebar cards with `flyTo`, hand-tint toggle button (`setPaintProperty` between `TINTS.mono`/`TINTS.tinted` palettes).
+- 4 placeholder обекти in `buildings.ts`: 2 exact (black extrusions + floating "от …€" price labels), 1 approximate (Иван Вазов; dotted circle), 1 plot (Панчарево; hatched `fill-pattern` from a runtime canvas image + dashed outline). Helper fns: `rect()`, `poly()` (meter-offset footprints), `circle()`.
+- Обект 3 (Изток) demonstrates a **multi-part "blueprint" footprint**: L-shaped wings + corner tower + set-back penthouse via per-feature `base`/`height` on `fill-extrusion`.
+- Comic-styled popups (overridden `.maplibregl-popup-content`) linking to `/obekti/<slug>`, sidebar cards with `flyTo`, mobile bottom sheet. Hand-tint washes are baked in (the toggle was removed after the decision).
 - **Gotcha fixed once already:** the MapLibre global is `maplibregl`, not `maplibre`.
-- **Font gotcha:** the demo's UI uses Patrick Hand, which has **no Cyrillic** — Bulgarian text falls back to a generic cursive. The presentation uses **Neucha + Caveat, both with Cyrillic** — prefer those for any future on-brand UI.
+- **Font gotcha:** any font must have **Cyrillic** (Patrick Hand was dropped for lacking it). Site fonts are set once in `src/styles/global.css` (`--font-display`, `--font-body`) — currently Montserrat as a placeholder.
+- **Base path gotcha:** all internal links must be built as `${import.meta.env.BASE_URL}path`; `localhost:4321/` without `/brokerski-podhod/` is a 404.
 - In production, listing footprints should snap to real OSM building outlines (manual pick during listing entry).
-- **3D model file formats (landmarks/showcase buildings):** both glTF and FBX load fine via three.js (`GLTFLoader` / `FBXLoader`, both `three/addons/loaders/...`, same ES-module CDN setup already in `demo-map/index.html`). Key difference: **glTF is typically multi-file** — a `.gltf` JSON + a `.bin` geometry buffer + separate texture images (that's the shape of the sourced Nevsky model in `3d-models/nevsky/`) — while **FBX is normally a single self-contained binary file** that embeds geometry/materials and often textures too. Neither shape is wrong; it's just how each format packages things. **glTF's spec mandates real-world units (meters) and Y-up**, so calibration is predictable; **FBX units/axis convention vary by exporting tool** (cm vs m, Y-up vs Z-up), so an FBX import may need the same scale/position/rotation calibration pass done for Nevsky (see `NEVSKY_REAL_HEIGHT`/`NEVSKY_ROTATION_DEG`/`NEVSKY_OFFSET_X`/`NEVSKY_OFFSET_Z` constants in `demo-map/index.html`) — or more, if the axis convention differs.
+- **3D model file formats (landmarks/showcase buildings):** both glTF and FBX load fine via three.js (`GLTFLoader` / `FBXLoader`, both `three/addons/loaders/...`, imported from the `three` npm package as in `src/components/PropertyMap.astro`). Key difference: **glTF is typically multi-file** — a `.gltf` JSON + a `.bin` geometry buffer + separate texture images (that's the shape of the sourced Nevsky model in `public/models/nevsky/`) — while **FBX is normally a single self-contained binary file** that embeds geometry/materials and often textures too. Neither shape is wrong; it's just how each format packages things. **glTF's spec mandates real-world units (meters) and Y-up**, so calibration is predictable; **FBX units/axis convention vary by exporting tool** (cm vs m, Y-up vs Z-up), so an FBX import may need the same scale/position/rotation calibration pass done for Nevsky (see `NEVSKY_REAL_HEIGHT`/`NEVSKY_ROTATION_DEG`/`NEVSKY_OFFSET_X`/`NEVSKY_OFFSET_Z` constants in `src/components/PropertyMap.astro`) — or more, if the axis convention differs.
 
 ## 6. The client presentation
 
@@ -71,18 +81,20 @@ brokerski_podhod/
   (Remember to also refresh the `Brokerski-podhod-koncepcia.html` copy if `index.html` changes.)
 - Recommended sending strategy (agreed): email the **PDF**, mention the interactive version exists → excuse for a live meeting showing the HTML deck + map demo.
 
-## 7. Open items / immediate next steps
+## 7. Open items / next steps (Sep 2026)
 
-1. **Presentation not yet sent.** The title/last slide has **no sender contact details** — user was asked to provide name/phone/email to add before sending; then regenerate the PDF.
-2. **⏳ Client feedback is the gate** for everything downstream (art direction, first showcase properties). The deck ends with 5 questions: style fit, story accuracy, which properties first, blueprints/3D models available, team photos willingness.
-3. **GitHub Pages** — user asked; answer: yes, works as-is (static, CDN+OpenFreeMap+Google Fonts all fine). Offered but not yet executed: `git init`-was-done/commit, create public repo (suggested name `brokerski-podhod`) via `gh`, push, enable Pages → live URLs for `demo-map/` and `presentation/`. **Caveat told to user: free Pages requires a public repo.** This also gives link-based sending of the presentation.
-4. **Next build task (roadmap step 4):** scrollytelling prototype of the apartment story — placeholder panel sketches, real Bulgarian bubble text, GSAP ScrollTrigger, mobile snap fallback — to validate before commissioning final artwork.
-5. **Artwork production risk to manage:** character consistency across ~12 panels → lock character sheets (suited agent, casual client couple) before producing panels.
+Full list in Planning.md §9. Headlines:
+1. **Client content** — team names, phone/Viber/address, real buildings, photos, apartment prices. Client feedback on the July presentation came back as `notex.txt` (direction update is in Planning.md).
+2. **Font decision** — client wants serif, not handwritten; MADE Tommy needs a paid commercial licence.
+3. **Contact form** does nothing yet (static hosting → needs Formspree/Web3Forms or similar).
+4. **Comic stories** (`/istoria/*`) — scrollytelling prototype, now in a corporate/business comic style; lock character sheets first.
+5. Map: price/m² filters once real prices exist; schema.org structured data; more landmarks.
+6. Homepage: alternating section backgrounds; decide on the achievements section.
 
 ## 8. Design principles to preserve (quick reference)
 
-- Paper `#eae5d9`, ink `#141414`; never pure white; grain texture everywhere.
-- Comic boxes: 3px solid black border + offset black shadow (`box-shadow: 5–8px 5–8px 0 #141414`), Caveat for display, Neucha for body (Cyrillic-safe).
+- Page `#faf9f7` (paper2 `#f2eee3` for alternating sections), ink `#2c2b28`; never pure white; grain texture everywhere. Maps still use `#eae5d9` paper.
+- Comic boxes: solid ink border + offset ink shadow. Fonts via CSS variables, must be Cyrillic-safe.
 - Comics strictly monochrome; map may use the two approved washes only.
 - Black on the map is reserved for properties for sale.
 - One visual world across the whole site — the main site must not feel generic after the comic intro.

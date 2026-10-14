@@ -1,0 +1,442 @@
+---
+// Top of /obekti/<slug>: building → floor → apartment.
+//  - 3D: real .glb or procedural placeholder (src/scripts/viewer3d.ts)
+//  - 2D: façade image with clickable floors (Floor.facade) → the floor's plan with clickable
+//    apartments (Floor.plan + Floor.units). Also the fallback when WebGL is missing / the model fails.
+// The page's apartments table reacts to the same state (see [slug].astro).
+import { Image } from 'astro:assets';
+import { type Building, STATUS_LABEL, floorsOf, suiteName, floorsText } from '../data/buildings';
+
+interface Props { building: Building }
+const { building } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const viewer = building.viewer!;
+
+const facadeImage = viewer.image ?? building.images[0];
+const has3D = !!(viewer.model || viewer.procedural);
+const floors = floorsOf(building);   // top first, like a lift panel
+const statusOf = Object.fromEntries(building.suites.map((s) => [s.number, s.status]));
+const nameOf = Object.fromEntries(building.suites.map((s) => [s.number, suiteName(s)]));
+const pts = (p: [number, number][]) => p.map((xy) => xy.join(',')).join(' ');
+// name tag sits centred on the top edge of the apartment's outline (only the topmost points
+// count, so an L-shaped outline doesn't pull the tag over the neighbour)
+const tagPos = (p: [number, number][]) => {
+  const top = Math.min(...p.map((xy) => xy[1]));
+  const xs = p.filter((xy) => xy[1] - top < 0.5).map((xy) => xy[0]);
+  return `left:${(Math.min(...xs) + Math.max(...xs)) / 2}%;top:${top}%`;
+};
+
+const data = {
+  modelUrl: viewer.model ? `${base}${viewer.model}` : undefined,
+  procedural: viewer.procedural,
+  has3D,
+  floors: floors.map((f) => ({ number: f.number, label: f.label, level: f.level, hasPlan: !!f.plan, planSrc: f.plan?.src })),
+  suites: building.suites.map((s) => ({
+    number: s.number,
+    name: suiteName(s),
+    type: s.type,
+    size: s.size,
+    floors: s.floors,
+    floorsText: floorsText(s),
+    status: s.status,
+    statusLabel: STATUS_LABEL[s.status],
+    price: s.price,
+    href: `${base}obekti/${building.slug}/${s.number}`,
+  })),
+};
+const available = (f: number) => building.suites.filter((s) => s.floors.includes(f) && s.status === 'available').length;
+const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f));
+---
+
+<div class="viewer" id="viewer" data-mode={has3D ? '3d' : 'image'}>
+  <script type="application/json" class="viewer-data" set:html={JSON.stringify(data)} />
+
+  <div class="stage comic-box">
+    {has3D && <div class="stage-3d"><p class="stage-loading">Зареждане на 3D модела…</p></div>}
+    <div class="stage-image">
+      {facadeImage && (
+        <div class="image-box facade-view" style={`--ratio: ${facadeImage.width / facadeImage.height}`}>
+          <Image src={facadeImage} alt={building.name} width={1400} loading="eager" />
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Етажи">
+            {floors.filter((f) => f.facade).map((f) => (
+              <polygon class="floor-shape" points={pts(f.facade!)} data-floor={f.number}>
+                <title>{f.label}</title>
+              </polygon>
+            ))}
+          </svg>
+        </div>
+      )}
+      {floors.filter((f) => f.plan).map((f) => (
+        <div class="image-box plan-view" data-floor={f.number} hidden style={`--ratio: ${f.plan!.width / f.plan!.height}`}>
+          <Image src={f.plan!} alt={`План — ${f.label}`} width={1600} />
+          {f.units && (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Апартаменти">
+              {Object.entries(f.units).map(([unit, outline]) => (
+                <polygon class={`unit-shape ${statusOf[unit] ?? 'sold'}`} points={pts(outline)} data-unit={unit}>
+                  <title>{nameOf[unit] ?? unit}</title>
+                </polygon>
+              ))}
+            </svg>
+          )}
+          {f.rooms && (
+            <div class="rooms" aria-hidden="true">
+              {f.rooms.map((r) => (
+                <span class="room" style={`left:${r.x}%;top:${r.y}%`}><b>{r.name}</b>{r.area && <i>{r.area}</i>}</span>
+              ))}
+            </div>
+          )}
+          {f.units && Object.entries(f.units).map(([unit, outline]) => (
+            <span class={`unit-tag ${statusOf[unit] ?? 'sold'}`} style={tagPos(outline)}>
+              {nameOf[unit] ?? unit}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+    <div class="tooltip" hidden></div>
+
+    <button type="button" class="plan-back" hidden>← Цялата сграда</button>
+    <p class="plan-label" hidden></p>
+    {has3D && facadeImage && (
+      <div class="mode-toggle" role="group" aria-label="Изглед">
+        <button type="button" data-mode="3d">3D</button>
+        <button type="button" data-mode="image">Снимка</button>
+      </div>
+    )}
+    <div class="legend">
+      <span><i class="sw available"></i>свободен</span>
+      <span><i class="sw reserved"></i>резервиран</span>
+      <span><i class="sw sold"></i>продаден</span>
+    </div>
+    <p class="stage-hint">изберете етаж</p>
+  </div>
+
+  {floors.length > 0 && (
+    <nav class="floors" aria-label="Етажи">
+      <button type="button" class="floor-btn whole" data-floor="">Цялата сграда</button>
+      {floors.map((f) => (
+        <button type="button" class="floor-btn" data-floor={f.number}>
+          <b>{f.number < 0 ? 'Г' : f.number}</b>
+          <small>{!hasUnits(f.number) ? f.label.toLowerCase() : available(f.number) ? `${available(f.number)} своб.` : 'няма своб.'}</small>
+        </button>
+      ))}
+    </nav>
+  )}
+
+  <div class="floor-panel" hidden>
+    <h3 class="floor-title"></h3>
+    <div class="units"></div>
+    <a class="plan-link" target="_blank" rel="noopener" hidden>План на етажа ↗</a>
+    <div class="unit-card" hidden></div>
+  </div>
+</div>
+
+<script>
+  type Suite = { number: string; name: string; type: string; size: string; floors: number[]; floorsText: string;
+    status: 'available' | 'reserved' | 'sold'; statusLabel: string; price?: string; href: string };
+  type FloorInfo = { number: number; label: string; level?: string; hasPlan: boolean; planSrc?: string };
+
+  const freeText = (n: number) => n === 0 ? 'няма свободни' : n === 1 ? '1 свободен' : `${n} свободни`;
+
+  document.querySelectorAll<HTMLElement>('.viewer').forEach(init);
+
+  async function init(root: HTMLElement) {
+    const data = JSON.parse(root.querySelector('.viewer-data')!.textContent!) as {
+      modelUrl?: string; procedural?: any; has3D: boolean; floors: FloorInfo[]; suites: Suite[] };
+    const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector<T>(sel);
+    const $$ = <T extends Element = HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
+    const stage3d = $('.stage-3d');
+    const tooltip = $('.tooltip')!, panel = $('.floor-panel')!, card = $('.unit-card')!;
+    const hint = $('.stage-hint')!, back = $('.plan-back')!, planLabel = $('.plan-label')!, planLink = $<HTMLAnchorElement>('.plan-link')!;
+    const facadeView = $('.facade-view');
+    const planViews = $$('.plan-view');
+    const floorBtns = $$<HTMLButtonElement>('.floor-btn');
+    const floorShapes = $$<SVGPolygonElement>('.floor-shape');
+    const unitShapes = $$<SVGPolygonElement>('.unit-shape');
+    // the page's apartments table, outside this component
+    const rows = [...document.querySelectorAll<HTMLElement>('[data-suite-row]')];
+
+    let state: { floor: number | null; unit: string | null } = { floor: null, unit: null };
+    let view3d: import('../scripts/viewer3d').Viewer3D | null = null;
+
+    const floorInfo = (f: number) => data.floors.find(x => x.number === f);
+    const floorTitle = (f: number) => {
+      const i = floorInfo(f);
+      return i ? `${i.label}${i.level ? ` · кота ${i.level}` : ''}` : `Етаж ${f}`;
+    };
+    const suitesOn = (f: number) => data.suites.filter(s => s.floors.includes(f));
+    const freeOn = (f: number) => suitesOn(f).filter(s => s.status === 'available').length;
+    const suite = (n: string | null) => n ? data.suites.find(s => s.number === n) : undefined;
+
+    // 2D: façade when no floor is picked, the floor's plan when it has one
+    function showStageImage() {
+      const planned = root.dataset.mode === 'image' && state.floor !== null && !!floorInfo(state.floor)?.hasPlan;
+      if (facadeView) facadeView.hidden = planned;
+      planViews.forEach(v => v.hidden = !planned || +v.dataset.floor! !== state.floor);
+      back.hidden = !planned;
+      planLabel.hidden = !planned;
+      if (planned) planLabel.textContent = floorTitle(state.floor!);
+      root.classList.toggle('plan-open', planned);
+    }
+
+    function set(floor: number | null, unit: string | null = null, opts: { scroll?: boolean } = {}) {
+      state = { floor, unit };
+      view3d?.setState(floor, unit);
+      showStageImage();
+
+      floorBtns.forEach(b => b.classList.toggle('active', (b.dataset.floor || null) === (floor === null ? null : String(floor))));
+      floorShapes.forEach(p => p.classList.toggle('active', +p.dataset.floor! === floor));
+      unitShapes.forEach(p => p.classList.toggle('active', p.dataset.unit === unit));
+      hint.hidden = floor !== null;
+      rows.forEach(r => {
+        const rowFloors = r.dataset.floors!.split(',').map(Number);
+        r.classList.toggle('on-floor', floor !== null && rowFloors.includes(floor));
+        r.classList.toggle('selected', r.dataset.unit === unit);
+      });
+
+      panel.hidden = floor === null;
+      if (floor !== null) {
+        const list = suitesOn(floor);
+        $('.floor-title')!.textContent = list.length ? `${floorTitle(floor)} · ${freeText(freeOn(floor))}` : floorTitle(floor);
+        $('.units')!.innerHTML = list.map(s => `
+          <button type="button" class="unit-chip ${s.status}${s.number === unit ? ' active' : ''}" data-unit="${s.number}">
+            <b>${s.name}</b> ${s.size}<small>${s.statusLabel}</small>
+          </button>`).join('');
+        // in 3D the plan isn't on stage — offer it as a link
+        const info = floorInfo(floor);
+        planLink.hidden = !(info?.planSrc && root.dataset.mode === '3d');
+        if (info?.planSrc) planLink.href = info.planSrc;
+      }
+
+      const s = suite(unit);
+      card.hidden = !s;
+      if (s) {
+        card.innerHTML = `
+          <div class="uc-head"><b>${s.name}</b><span class="uc-status ${s.status}">${s.statusLabel}</span></div>
+          <div class="uc-grid">
+            <span>Тип</span><b>${s.type}</b>
+            <span>Площ</span><b>${s.size}</b>
+            <span>${s.floors.length > 1 ? 'Етажи' : 'Етаж'}</span><b>${s.floorsText}</b>
+            <span>Цена</span><b>${s.status === 'sold' ? '—' : s.price ? `от ${s.price}` : 'при запитване'}</b>
+          </div>
+          <a class="btn" href="${s.href}">Разпределение и цени →</a>`;
+        if (opts.scroll) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // shareable state: /obekti/sgrada-a?floor=2&unit=m4
+      const url = new URL(location.href);
+      floor === null ? url.searchParams.delete('floor') : url.searchParams.set('floor', String(floor));
+      unit === null ? url.searchParams.delete('unit') : url.searchParams.set('unit', unit);
+      history.replaceState(null, '', url);
+    }
+
+    floorBtns.forEach(b => b.addEventListener('click', () => set(b.dataset.floor ? +b.dataset.floor : null)));
+    floorShapes.forEach(p => p.addEventListener('click', () => set(+p.dataset.floor!)));
+    unitShapes.forEach(p => p.addEventListener('click', () => set(state.floor, p.dataset.unit!, { scroll: true })));
+    back.addEventListener('click', () => set(null));
+    $('.units')!.addEventListener('click', e => {
+      const chip = (e.target as HTMLElement).closest<HTMLElement>('.unit-chip');
+      if (chip) set(state.floor, chip.dataset.unit!, { scroll: true });
+    });
+
+    function showTooltip(text: string | null, x: number, y: number) {
+      tooltip.hidden = !text;
+      if (text) { tooltip.textContent = text; tooltip.style.left = `${x}px`; tooltip.style.top = `${y}px`; }
+    }
+    const stageEl = $('.stage')!;
+    function hoverLabel(el: SVGPolygonElement, text: () => string) {
+      el.addEventListener('pointermove', e => {
+        const r = stageEl.getBoundingClientRect();
+        showTooltip(text(), e.clientX - r.left, e.clientY - r.top);
+      });
+      el.addEventListener('pointerleave', () => showTooltip(null, 0, 0));
+    }
+    floorShapes.forEach(p => hoverLabel(p, () => {
+      const f = +p.dataset.floor!;
+      return suitesOn(f).length ? `${floorTitle(f)} · ${freeText(freeOn(f))}` : floorTitle(f);
+    }));
+    unitShapes.forEach(p => hoverLabel(p, () => {
+      const s = suite(p.dataset.unit!);
+      return s ? `${s.name} · ${s.statusLabel.toLowerCase()}` : '';
+    }));
+
+    function setMode(mode: '3d' | 'image') {
+      root.dataset.mode = mode;
+      $$<HTMLButtonElement>('.mode-toggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      set(state.floor, state.unit);
+    }
+    $$<HTMLButtonElement>('.mode-toggle button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode as '3d' | 'image')));
+
+    function fallback(reason: string) {
+      console.warn('[viewer] 3D unavailable →', reason);
+      root.querySelector('.mode-toggle')?.remove();
+      stage3d?.remove();
+      setMode('image');
+    }
+
+    // floor plans are hidden at first (so lazy) — warm them up once the page has settled,
+    // otherwise the first floor click shows the outlines on a blank plan for a moment
+    setTimeout(() => planViews.forEach(v => { const img = v.querySelector('img'); if (img) img.loading = 'eager'; }), 1200);
+
+    // initial state from the URL (e.g. coming back from an apartment page)
+    const params = new URLSearchParams(location.search);
+    const initFloor = params.get('floor') ? +params.get('floor')! : null;
+    state = { floor: initFloor, unit: params.get('unit') };
+
+    if (data.has3D && stage3d) {
+      root.dataset.mode = '3d';
+      const { createViewer3D, webglAvailable } = await import('../scripts/viewer3d');
+      if (!webglAvailable()) fallback('no WebGL');
+      else {
+        try {
+          view3d = await createViewer3D(stage3d, {
+            suites: data.suites,
+            modelUrl: data.modelUrl,
+            procedural: data.procedural,
+            onPickFloor: f => set(f),
+            onPickUnit: u => set(state.floor, u, { scroll: true }),
+            onHover: showTooltip,
+            hoverText: (f, u) => {
+              const s = suite(u);
+              return s ? `${s.name} · ${s.statusLabel.toLowerCase()}` : `${floorTitle(f)} · ${freeText(freeOn(f))}`;
+            },
+          });
+          stage3d.querySelector('.stage-loading')?.remove();
+          if (!view3d.hasFloors) root.classList.add('no-floors');   // e.g. a house model: just orbit
+          setMode('3d');
+        } catch (err) {
+          fallback(String(err));
+        }
+      }
+    } else {
+      setMode('image');
+    }
+  }
+</script>
+
+<style>
+  .viewer { --stage-h: min(70vh, 640px); width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 16px; }
+
+  .stage { position: relative; height: var(--stage-h); overflow: hidden; background: var(--paper); padding: 0; }
+  .stage-3d, .stage-image { position: absolute; inset: 0; }
+  .stage-3d :global(canvas) { display: block; width: 100%; height: 100%; touch-action: none; }
+  .stage-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font-style: italic; }
+  .viewer[data-mode='3d'] .stage-image, .viewer[data-mode='image'] .stage-3d { display: none; }
+
+  .stage-image { display: grid; place-items: center; background: var(--paper2); }
+  .plan-open .stage-image { background: #fff; }
+  /* explicit size from the image ratio, so the SVG outlines sit exactly on the picture */
+  .image-box { grid-area: 1 / 1; position: relative; container-type: inline-size; aspect-ratio: var(--ratio); width: min(100%, calc(var(--stage-h) * var(--ratio))); }
+  .image-box[hidden] { display: none; }
+  .image-box :global(img) { display: block; width: 100%; height: 100%; }
+  .image-box svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .image-box polygon { vector-effect: non-scaling-stroke; cursor: pointer; transition: fill-opacity .15s; }
+
+  .floor-shape { fill: var(--ink); fill-opacity: 0; stroke: var(--paper); stroke-width: 1.5; stroke-opacity: .8; }
+  .floor-shape:hover { fill-opacity: .3; }
+  .floor-shape.active { fill: var(--accent); fill-opacity: .45; stroke: var(--ink); stroke-width: 2; }
+
+  /* apartments on the clean plan: the walls already show the boundaries, so free ones stay clear
+     and only light up on hover; sold/reserved get a wash */
+  .unit-shape { stroke: transparent; stroke-width: 3; fill: var(--sonar-teal); fill-opacity: 0; }
+  .unit-shape:hover { fill-opacity: .07; stroke: var(--sonar-teal); }
+  .unit-shape.reserved { fill: #8f8a7a; fill-opacity: .18; }
+  .unit-shape.sold { fill: #8f8a7a; fill-opacity: .3; }
+  .unit-shape.active { fill: var(--accent); fill-opacity: .2; stroke: var(--accent); }
+
+  /* live text over the plan (room names + m², apartment tags) — sized to the plan, not the page */
+  .rooms, .unit-tag { pointer-events: none; }
+  .room {
+    position: absolute; transform: translate(-50%, -50%); text-align: center; line-height: 1.15;
+    color: var(--sonar-teal); font-size: clamp(6px, 1cqw, 13px); white-space: nowrap;
+  }
+  .room b { display: block; font-weight: 500; text-transform: uppercase; letter-spacing: .03em; font-size: .82em; }
+  .room i { font-style: normal; font-weight: 600; }
+  .unit-tag {
+    position: absolute; transform: translate(-50%, -50%); white-space: nowrap;
+    background: var(--sonar-teal); color: #fff; font-size: clamp(9px, 1.15cqw, 14px); font-weight: 600;
+    padding: .15em .7em; letter-spacing: .02em;
+  }
+  .unit-tag.sold { background: #8f8a7a; }
+  .unit-tag.reserved { background: #6f6b60; }
+  @container (max-width: 520px) { .room { display: none; } }
+
+  .tooltip {
+    position: absolute; z-index: 3; pointer-events: none; transform: translate(12px, -130%);
+    background: var(--paper); border: 2px solid var(--ink); padding: 3px 9px; font-size: 14px; white-space: nowrap;
+  }
+  .mode-toggle { position: absolute; z-index: 2; top: 12px; left: 12px; display: flex; }
+  .plan-open .mode-toggle { display: none; }
+  .mode-toggle button, .floor-btn, .plan-back, .viewer :global(.unit-chip) {
+    font-family: var(--font-body); color: var(--ink); background: var(--paper);
+    border: 2px solid var(--ink); cursor: pointer;
+  }
+  .mode-toggle button { padding: 4px 12px; font-size: 14px; }
+  .mode-toggle button + button { border-left: 0; }
+  .mode-toggle button.active { background: var(--ink); color: var(--paper); }
+  .plan-back { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 5px 12px; font-size: 14px; box-shadow: 3px 3px 0 var(--ink); }
+  .plan-back[hidden], .plan-label[hidden] { display: none; }
+  .plan-label {
+    position: absolute; z-index: 2; top: 12px; right: 12px; font-size: 16px; font-weight: 500;
+    background: var(--paper); border: 2px solid var(--ink); padding: 4px 12px;
+  }
+
+  .legend {
+    position: absolute; z-index: 2; bottom: 10px; left: 12px; display: flex; gap: 12px; flex-wrap: wrap;
+    font-size: 13px; background: color-mix(in srgb, var(--paper) 85%, transparent); padding: 4px 8px;
+  }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .sw { width: 14px; height: 11px; border: 1.5px solid var(--ink); display: inline-block; }
+  .sw.available { background: #2c2b28; }
+  .sw.reserved { background: #8f8a7a; }
+  .sw.sold { background: #eee9de; }
+  .stage-hint {
+    position: absolute; z-index: 2; top: 12px; right: 12px; font-size: 14px; color: var(--dim);
+    background: color-mix(in srgb, var(--paper) 85%, transparent); padding: 2px 8px; pointer-events: none;
+  }
+  .stage-hint[hidden] { display: none; }
+  .no-floors .stage-hint, .no-floors .legend, .no-floors .floors { display: none; }
+
+  /* lift panel: top floor first */
+  .floors { display: flex; flex-direction: column; gap: 6px; width: 92px; }
+  .floor-btn { padding: 6px 4px; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+  .floor-btn b { font-size: 20px; }
+  .floor-btn small { font-size: 11px; color: var(--dim); }
+  .floor-btn.whole { font-size: 12px; padding: 8px 4px; }
+  .floor-btn:hover { background: var(--paper2); }
+  .floor-btn.active { background: var(--ink); color: var(--paper); }
+  .floor-btn.active small { color: var(--paper2); }
+
+  .floor-panel { grid-column: 1 / -1; }
+  .floor-title { font-size: 22px; margin-bottom: 10px; }
+  .units { display: flex; flex-wrap: wrap; gap: 8px; }
+  .plan-link { display: inline-block; margin-top: 10px; color: var(--ink); }
+  .plan-link[hidden] { display: none; }
+  .viewer :global(.unit-chip) { padding: 6px 12px; font-size: 15px; display: flex; gap: 6px; align-items: baseline; text-align: left; }
+  .viewer :global(.unit-chip small) { font-size: 12px; color: var(--dim); }
+  .viewer :global(.unit-chip.available) { box-shadow: 3px 3px 0 var(--ink); }
+  .viewer :global(.unit-chip.sold) { opacity: .6; }
+  .viewer :global(.unit-chip:hover) { background: var(--paper2); }
+  .viewer :global(.unit-chip.active) { background: var(--accent); color: var(--paper); }
+  .viewer :global(.unit-chip.active small) { color: var(--paper); }
+
+  .unit-card {
+    margin-top: 14px; max-width: 460px; padding: 16px 18px; background: var(--paper);
+    border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink);
+  }
+  .unit-card[hidden] { display: none; }
+  .viewer :global(.uc-head) { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 20px; margin-bottom: 10px; }
+  .viewer :global(.uc-status) { font-size: 13px; border: 1.5px solid var(--ink); padding: 1px 8px; }
+  .viewer :global(.uc-status.available) { background: var(--ink); color: var(--paper); }
+  .viewer :global(.uc-grid) { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-bottom: 14px; font-size: 16px; }
+  .viewer :global(.uc-grid span) { color: var(--dim); }
+
+  @media (max-width: 720px) {
+    .viewer { grid-template-columns: 1fr; --stage-h: 60vh; }
+    .floors { flex-direction: row; width: auto; overflow-x: auto; }
+    .floor-btn { min-width: 58px; }
+    .floor-btn.whole { min-width: 84px; }
+    .stage-hint { display: none; }
+    .plan-label { top: auto; bottom: 44px; right: 8px; font-size: 13px; }
+  }
+</style>

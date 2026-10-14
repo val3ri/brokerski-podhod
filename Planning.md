@@ -2,6 +2,15 @@
 
 Real estate agency operating in Sofia, Bulgaria. Residential properties (apartments and houses) and building plots.
 
+**Client brand: Sonar Development Company** ("Sonar" in the header, logo = two vertical lines/buildings). „Брокерски подход“ is the project codename / repo name, not the brand. The site presents both the agency services and the company's own developments (обекти with apartments).
+
+> **Direction update (Sep 2026, from client notes in `notex.txt`)** — overrides older details below where they conflict:
+> - **Colors:** page background `#faf9f7` (warm near-white) replaces `#eae5d9`; `--paper2: #f2eee3` for alternating sections. The maps still use `#eae5d9` for their paper — to be reconciled.
+> - **Fonts:** serif, but *not* handwritten. Currently Montserrat as a placeholder (sans). MADE Tommy was considered — **not free for commercial use** (paid MADEType licence needed). Open decision, see §9.
+> - **Comics:** business-oriented, corporate style — *not* childish/indie. Reference: the client's Instagram photos (not stored in the repo).
+> - **Map:** keep the graphite/ink style; add important orientation buildings (NDK, Nevsky done; more to come).
+> - **Inspiration:** https://hristoshomov.com/keysoff
+
 ## 1. Vision & Differentiation
 
 Every competitor site (elitebuild.bg, balkanikahomes.eu, bld.bg) is the same: "who we are" + a listings database. They sell inventory.
@@ -47,8 +56,8 @@ The comic doesn't just decorate the site — it *is* the pitch. Slides 1–4 of 
 
 ## 4. Art Direction
 
-- **Style:** black and white comic book art, indie graphic novel style, clean ink line art.
-- **Background:** off-white / cream / vintage paper texture — `#eae5d9`. Never pure white.
+- **Style:** black and white comic book art, clean ink line art — **business-oriented, corporate tone** (client feedback, Sep 2026; originally "indie graphic novel").
+- **Background:** warm near-white `#faf9f7` with paper grain (originally cream `#eae5d9`). Never pure white.
 - **Palette:** strictly monochrome, high-contrast black ink, no colored elements; subtle ink washes for shadows.
 - **Aesthetics:** hand-drawn look, expressive characters, dynamic panels with bold black borders.
 - **Bubble space:** illustrations must have clear areas designed for speech bubbles and caption boxes without cluttering the action.
@@ -65,7 +74,8 @@ The comic doesn't just decorate the site — it *is* the pitch. Slides 1–4 of 
 |---|---|
 | Hero | "Какво търсите?" — three illustrated choices |
 | Who we are | Comic charm + **real photos of the actual team** — buyers of expensive assets want real faces before they call |
-| Our achievements | Numbers/milestones, drawn in the ink style |
+| Our achievements | Numbers/milestones ("числата зад доверието": happy clients, deals closed) — **currently not on the page; open question whether it's needed** |
+| Обекти | The company's own buildings (grid → `/obekti/[slug]` → `/obekti/[slug]/[suite]`) |
 | What we offer | Services overview (buy, sell, plots, construction management) |
 | Properties | Map **plus** filterable list — see below |
 | Contacts | Phone, Viber, form, office location |
@@ -73,19 +83,23 @@ The comic doesn't just decorate the site — it *is* the pitch. Slides 1–4 of 
 ### Properties section
 - The **3D ink map** (see section 6) is the centerpiece, but **not the only browsing mode**.
 - Filterable list alongside the map: **neighborhood** (most important — Sofia buyers think in Лозенец, Бояна, Драгалевци…), price, m², type.
+  - ✅ Implemented on `/imoti`: neighborhood, type (сграда/парцел), apartment type (1-стаен…Мезонет). Filters hide non-matching objects on the map and in the list, then re-frame the camera. **Price and m² filters wait for real per-apartment prices/sizes** in the data.
+- Section separation: alternate `--paper` / `--paper2` backgrounds between homepage sections (client request).
 - **Each property gets its own page** — that's where SEO traffic lands.
 - Content-marketing idea: **neighborhood guides drawn in the same ink style** — great SEO and shareable. A small hand-drawn isometric map per neighborhood (with landmarks) fits here, where a drawn map *can* scale.
 
 ## 6. The Map — "Ink City" in 3D
 
-**Concept:** not a flat map with pins, but a tilted 3D map of Sofia rendered as an ink drawing on paper. A working demo exists at `demo-map/index.html` (MapLibre GL + free OpenFreeMap/OSM vector tiles, no API key).
+**Concept:** not a flat map with pins, but a tilted 3D map of Sofia rendered as an ink drawing on paper. Lives in the site at `/imoti` — `src/components/PropertyMap.astro` (MapLibre GL + free OpenFreeMap/OSM vector tiles, no API key). The old standalone `demo-map/` was removed.
+
+**Data:** the map reads `src/data/buildings.ts` — the same source as the homepage grid and the `/obekti` pages. Each building has an optional `map` field: `lon`/`lat`, footprint (`box` or multi-part `parts`), `plot` size, `approxRadius` (address privacy), and a fly-to `view`. Popups link to `/obekti/<slug>`.
 
 ### Visual language
 - Fully custom map style: cream paper `#eae5d9` background with grain texture, black ink roads, neighborhood labels, the whole city as **pale, low, sketch-like 3D volumes**.
 - **Buildings with listings rise out of the sketch**: extruded taller, solid black ink, with floating price tags — exaggeration by *height*, not width (width would distort streets and confuse orientation).
 - Clicking a listing opens a **comic caption-box popup** (cream, 3px black border, offset shadow) with photo, price, m², link to the property page.
 - **Building plots** (no building to extrude): hand-hatched polygon with dashed ink border; flatter camera when zoomed out to the surroundings.
-- **Landmark buildings, implemented**: rather than flat drawn-icon markers (the original idea below), NDK and the Alexander Nevsky Cathedral are real stylized 3D volumes on the map (`demo-map/index.html`) — a MapLibre custom layer rendered with three.js, since MapLibre's native `fill-extrusion` can't produce curved/domed geometry. Simplified, low-poly, ink-outlined shapes (NDK: stacked tapering tiers + spire; Nevsky: cross-plan base + domed drum + taller bell tower + minor domes), always pale (`#d6cfbe`, same tone as the rest of the sketched city) — never black, since black stays reserved for listings. Not real architect models (rejected per the project's "stylized, not photorealistic" approach for orientation anchors); real glTF models remain reserved for showcase listing buildings per the tiers above.
+- **Landmark buildings, implemented**: rather than flat drawn-icon markers (the original idea below), NDK and the Alexander Nevsky Cathedral are real stylized 3D volumes on the map (`src/components/PropertyMap.astro`) — a MapLibre custom layer rendered with three.js, since MapLibre's native `fill-extrusion` can't produce curved/domed geometry. Simplified, low-poly, ink-outlined shapes (NDK: stacked tapering tiers + spire; Nevsky: cross-plan base + domed drum + taller bell tower + minor domes), always pale (`#d6cfbe`, same tone as the rest of the sketched city) — never black, since black stays reserved for listings. Not real architect models (rejected per the project's "stylized, not photorealistic" approach for orientation anchors); real glTF models remain reserved for showcase listing buildings per the tiers above.
 - Original landmark idea (superseded by the above for these two buildings, may still suit others): small drawn illustrations as markers (Витоша, НДК, Александър Невски) so visitors orient instantly.
 - Rejected alternative: a fully illustrated isometric map of the whole city — maximum charm but can't cover Sofia + surroundings, and every listing change means artwork changes. Kept only for neighborhood guide pages.
 
@@ -108,6 +122,16 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 - **Black is reserved for listings** — nothing on the map may be darker than a property for sale.
 - The comic presentations stay **strictly monochrome** — no color in the brand statement.
 
+### Building viewer on the property page (implemented Sep 2026)
+"Виж обекта" opens `/obekti/<slug>`: **viewer on top, information below**. Flow: orbit the building → click a floor (or the lift-style floor panel) → floors above disappear, apartments on that floor appear colored by status → click an apartment (3D or its chip) → details card + link to `/obekti/<slug>/<n>`. The page's apartments table highlights in sync, and state is in the URL (`?floor=3&unit=5`, used by the apartment page's "Виж го в сградата" link).
+- **Three sources, first available wins:** real `.glb` model → procedural massing generated from floors/apartments (placeholder) → 2D façade image with clickable floor polygons. Automatic fallback to the image when WebGL is missing or the model fails.
+- **Model contract:** `.glb`, meters, Y-up, < 5 MB, nodes named `floor_N` and `unit_<Suite.number>`; everything else is plain building. Houses/single apartments without floor nodes → orbit-only. Full instructions: README "3D models".
+- **Colors follow the map rule:** black = available (for sale), gray = reserved, pale = sold, accent = selected. The model's own materials are overridden with the ink style, so textures aren't needed.
+- **Libraries:** three.js (`GLTFLoader`, `OrbitControls`) — already a dependency, loaded via dynamic import only on pages with 3D. Rejected `<model-viewer>`: great for single-object viewing, awkward for per-floor isolation and per-apartment picking.
+- Demo data: Обект 1 = procedural, Обект 2 = 2D façade with floor hotspots, Обект 3 = demo `.glb` (from `scripts/make-demo-model.mjs`) + photo toggle.
+- **First real building — Sonar Residence, Сграда А (Oct 2026), 2D only:** façade render (catalogue p.9) → click a floor → the architect's floor plan for that кота (−3.05 garage from the catalogue, ±0.00 / +3.05 / +6.10 from the РАЗПРЕДЕЛЕНИЕ PDFs, title block cropped off) with each apartment outlined and status-colored → apartment page with the catalogue plan, areas and the price table per payment scheme. Data model: explicit `floors` per building (`number`, `label`, `level`, `plan`, `facade` outline, `units` outlines); suites have `floors: number[]` so maisonettes span two floors. Source material lives in `sonar-files/` (gitignored, confidential).
+- Later: floor plan images per apartment (in the floor view and on the apartment page), and showing the real model on the city map (tier 3 above).
+
 ### Practical constraints
 - **Mobile:** 3D extrusion is heavy on cheap phones — fall back to the same ink-styled map, flat, with clickable ink pins.
 - **Listing-entry workflow:** adding a property includes picking its OSM building footprint (or drawing the plot polygon) — trivial at tens of listings, but must be part of the process.
@@ -119,7 +143,9 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 | Framework | **Astro** (scaffolded at repo root — `package.json`, `src/pages`, `src/layouts`, `src/components`) | Mostly static content, fast, excellent SEO out of the box; interactivity only where needed. Next.js would be overkill. |
 | Scrollytelling | **GSAP ScrollTrigger** (v1 can start with CSS `scroll-snap`) | Pinned scenes, panels reveal on scroll |
 | Map | **MapLibre GL + OpenFreeMap (OSM vector tiles)** | Free, no API key, fully custom "ink city" 3D style (see section 6); three.js custom layer for glTF showcase models |
-| Listings data | Astro content collections (markdown/JSON in repo) → headless CMS (Sanity/Directus) later | Tens of properties don't need a CMS on day one |
+| Listings data | `src/data/buildings.ts` (typed TS array, single source for grid, detail pages, map) → content collections / headless CMS (Sanity/Directus) later | Tens of properties don't need a CMS on day one |
+| Hosting | GitHub Pages, auto-deploy on push to `main` (`.github/workflows/deploy.yml`), base path `/brokerski-podhod/` | Free, static. Drop `base` when a custom domain arrives |
+| Contact form | **Not wired yet** — static hosting needs a form service (Formspree/Web3Forms) | |
 | Images | WebP/AVIF, responsive sizes; SVG for line decorations | Performance + crispness |
 | i18n | Bulgarian primary, English secondary | Live-text bubbles make this possible |
 
@@ -135,12 +161,25 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 
 ## 8. Roadmap
 
-1. ~~**Prototype the 3D ink map**~~ — ✅ done: `demo-map/index.html` (ink-styled 3D Sofia, black listing buildings with price tags, blueprint-shaped multi-part building, hatched plot, approximate-location circle, comic popups, sidebar list with fly-to, hand-tint toggle). Since extended with stylized 3D landmarks (NDK, Alexander Nevsky) — see §6.
+1. ~~**Prototype the 3D ink map**~~ — ✅ done: originally `demo-map/index.html`, now `/imoti` in the site (ink-styled 3D Sofia, black listing buildings with price tags, blueprint-shaped multi-part building, hatched plot, approximate-location circle, comic popups, sidebar list with fly-to). Since extended with stylized 3D landmarks (NDK, Alexander Nevsky) — see §6.
 2. ~~**Client presentation**~~ — ✅ done: `presentation/` — 8-slide deck in Bulgarian, built in the project's own ink-on-paper aesthetic; sendable as `Brokerski-podhod-koncepcia.html` (interactive) or `Brokerski-podhod-koncepcia.pdf` (attachment-safe). Ends with five concrete feedback questions for the client (style fit, story accuracy, showcase properties, blueprints/3D models, team photos).
 3. **⏳ Client feedback still pending** — presentation/GitHub Pages logistics were dropped; site build moved ahead anyway (steps 4-5 below are also still outstanding, picked up out of order).
 4. **Prototype the apartment story** — working scrollytelling page with placeholder panel sketches, real Bulgarian bubble text, GSAP scroll behavior, mobile fallback. Validate the concept in the browser before investing in final artwork.
 5. Lock the art direction: character sheets, one finished sample panel.
 6. ~~**Build the main site skeleton**~~ — ✅ done: real Astro project (not just static HTML) at the repo root, with the paper/ink/grain design system in `src/styles/global.css` + `src/layouts/Layout.astro`. Homepage (`src/pages/index.astro`) has all six sections from §5 (hero with the three choices + `localStorage` intent, who we are, achievements, services, properties teaser, contacts) with placeholder copy/content where real assets aren't ready yet. Stub routes exist at `/imoti`, `/istoria/apartament`, `/istoria/parcel`.
-7. Properties: data model, list + filters, production map (port the demo into the site), property detail pages. `/imoti` is currently a stub.
+7. **Properties** — mostly ✅: map ported into the site (`/imoti`), data model in `src/data/buildings.ts` shared by grid/detail pages/map, filterable list (neighborhood, type, apartment type), building + apartment detail pages. Still open: price/m² filters (need real data), schema.org `RealEstateListing` structured data, real content.
 8. Produce all ~12 final panels; wire up both presentations.
 9. Neighborhood guides, English version, polish, launch.
+
+## 9. Open decisions & to-dos (Sep 2026)
+
+- **Font:** buy MADE Tommy licence, or pick a free Cyrillic serif (client wants serif, not handwritten). Montserrat is a placeholder.
+- **Achievements section:** keep or drop? If kept — which real numbers.
+- **Section separation:** alternate backgrounds between homepage sections.
+- **Map paper color:** maps still use `#eae5d9` while the page is `#faf9f7` — align or keep deliberately.
+- **Contact form:** wire to a form service, or replace with phone/Viber links.
+- **Logo:** client to provide the mark alone (two lines/buildings, no text) as a file.
+- **Real content** (client): team names/titles, phone/Viber/address, buildings, photos, apartment plans and prices.
+- **Comic stories:** `/istoria/*` still placeholders; character sheets in the new corporate style first.
+- **Research:** Google real-building extraction videos (in `notex.txt`) — for the 3D-model tier.
+- Housekeeping: `src/assets/logo-transparent.pngZone.Identifier` (Windows leftover) and unused logo variants in `src/assets`.

@@ -1,3 +1,29 @@
+---
+import { buildings, TYPE_LABEL } from '../data/buildings';
+
+const base = import.meta.env.BASE_URL;
+
+// only what the client script needs, serialized into the page (ImageMetadata etc. stays server-side)
+const objects = buildings.filter((b) => b.map).map((b) => ({
+  slug: b.slug,
+  name: b.name,
+  status: b.status,
+  type: b.type,
+  typeLabel: TYPE_LABEL[b.type],
+  neighborhood: b.neighborhood,
+  priceFrom: b.priceFrom,
+  rooms: [...new Set(b.suites.map((s) => s.type))],
+  href: `${base}obekti/${b.slug}`,
+  image: b.images[0]?.src,
+  map: b.map,
+}));
+const neighborhoods = [...new Set(objects.map((o) => o.neighborhood))].sort((a, b) => a.localeCompare(b, 'bg'));
+const roomTypes = [...new Set(objects.flatMap((o) => o.rooms))];
+const types = [...new Set(objects.map((o) => o.type))];
+---
+
+<script type="application/json" id="map-data" set:html={JSON.stringify(objects)} />
+
 <div class="map-wrap">
   <div id="map"></div>
 
@@ -7,7 +33,21 @@
   </header>
 
   <aside class="comic-box" id="listings-sheet">
-    <h2 id="sheet-toggle">Имоти <span id="cards-count"></span><span class="chevron" aria-hidden="true">▲</span></h2>
+    <h2 id="sheet-toggle">Обекти <span id="cards-count"></span><span class="chevron" aria-hidden="true">▲</span></h2>
+    <div class="filters">
+      <select id="f-hood" aria-label="Квартал">
+        <option value="">Всички квартали</option>
+        {neighborhoods.map((n) => <option value={n}>{n}</option>)}
+      </select>
+      <select id="f-type" aria-label="Вид">
+        <option value="">Всички видове</option>
+        {types.map((t) => <option value={t}>{TYPE_LABEL[t]}</option>)}
+      </select>
+      <select id="f-rooms" aria-label="Тип жилище">
+        <option value="">Всякакъв тип жилище</option>
+        {roomTypes.map((r) => <option value={r}>{r}</option>)}
+      </select>
+    </div>
     <div id="cards"></div>
   </aside>
 
@@ -148,52 +188,48 @@
     return [(lon - anchorLon) * mx, (lat - anchorLat) * my];
   }
 
-  const LISTINGS = [
-    { id: 1, kind: 'exact', title: 'Тристаен в Лозенец', price: '185 000 €', area: '96 м²',
-      lon: 23.3247, lat: 42.6749, h: 46, w: 34, d: 22,
-      view: { zoom: 15.6, pitch: 58, bearing: -20 } },
-    { id: 2, kind: 'exact', title: 'Двустаен до НДК', price: '142 000 €', area: '68 м²',
-      lon: 23.3186, lat: 42.6847, h: 38, w: 28, d: 24,
-      view: { zoom: 15.6, pitch: 58, bearing: 15 } },
-    { id: 3, kind: 'exact', title: 'Мезонет в Изток', price: '230 000 €', area: '140 м²',
-      lon: 23.3498, lat: 42.6704,
-      // "blueprint" footprint: L-shaped wing + corner tower + set-back penthouse
-      parts: [
-        { pts: [[-22,-9],[18,-9],[18,6],[-22,6]], base: 0, height: 18 },          // long wing
-        { pts: [[-22,6],[-7,6],[-7,26],[-22,26]], base: 0, height: 18 },          // short wing (L)
-        { pts: [[2,6],[18,6],[18,22],[2,22]], base: 0, height: 46 },              // tower
-        { pts: [[5,9],[15,9],[15,19],[5,19]], base: 46, height: 54 },             // penthouse setback
-      ],
-      view: { zoom: 16.2, pitch: 60, bearing: -35 } },
-    { id: 4, kind: 'plot', title: 'Парцел в Панчарево', price: '95 000 €', area: '1200 м²',
-      lon: 23.4025, lat: 42.5936, pw: 120, pd: 95,
-      view: { zoom: 15.2, pitch: 40, bearing: 0 } },
-    { id: 5, kind: 'approx', title: 'Тристаен в Иван Вазов', price: '176 000 €', area: '92 м²',
-      lon: 23.3134, lat: 42.6789, r: 220,
-      note: 'точният адрес — при контакт',
-      view: { zoom: 14.8, pitch: 50, bearing: 0 } },
-  ] as any[];
+  // objects come from src/data/buildings.ts, serialized by the frontmatter above
+  type MapObject = {
+    slug: string; name: string; status: string; type: string; typeLabel: string; neighborhood: string;
+    priceFrom?: string; rooms: string[]; href: string; image?: string;
+    map: {
+      lon: number; lat: number;
+      box?: { w: number; d: number; h: number };
+      parts?: { pts: [number, number][]; base: number; height: number }[];
+      plot?: { w: number; d: number };
+      approxRadius?: number;
+      view: { zoom: number; pitch: number; bearing: number };
+    };
+  };
+  const OBJECTS: MapObject[] = JSON.parse(document.getElementById('map-data')!.textContent!);
 
-  const buildingsGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'exact').flatMap(l =>
-    (l.parts ?? [{ pts: null, base: 0, height: l.h }]).map((p: any) => ({
+  // how each object is drawn: plot → hatched polygon; approxRadius → dotted circle (address
+  // privacy wins over a known footprint); otherwise → black extruded building
+  const shapeOf = (o: MapObject) => o.type === 'plot' ? 'plot' : o.map.approxRadius ? 'approx' : 'exact';
+  const collection = (features: any[]) => ({ type: 'FeatureCollection', features }) as any;
+
+  const buildingsGJ = collection(OBJECTS.filter(o => shapeOf(o) === 'exact').flatMap(o => {
+    const { lon, lat, parts, box } = o.map;
+    const volumes = parts ?? [{ pts: null, base: 0, height: box?.h ?? 30 }];
+    return volumes.map((p: any) => ({
       type: 'Feature',
-      properties: { id: l.id, height: p.height, base: p.base },
+      properties: { slug: o.slug, height: p.height, base: p.base },
       geometry: { type: 'Polygon',
-        coordinates: p.pts ? poly(l.lon, l.lat, p.pts) : rect(l.lon, l.lat, l.w, l.d) }
-    }))
-  )} as any;
-  const plotsGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'plot').map(l => ({
-    type: 'Feature', properties: { id: l.id },
-    geometry: { type: 'Polygon', coordinates: rect(l.lon, l.lat, l.pw, l.pd) }
-  }))} as any;
-  const approxGJ = { type: 'FeatureCollection', features: LISTINGS.filter(l => l.kind === 'approx').map(l => ({
-    type: 'Feature', properties: { id: l.id },
-    geometry: { type: 'Polygon', coordinates: circle(l.lon, l.lat, l.r) }
-  }))} as any;
-  const labelsGJ = { type: 'FeatureCollection', features: LISTINGS.map(l => ({
-    type: 'Feature', properties: { id: l.id, label: l.price },
-    geometry: { type: 'Point', coordinates: [l.lon, l.lat] }
-  }))} as any;
+        coordinates: p.pts ? poly(lon, lat, p.pts) : rect(lon, lat, box?.w ?? 25, box?.d ?? 20) }
+    }));
+  }));
+  const plotsGJ = collection(OBJECTS.filter(o => shapeOf(o) === 'plot').map(o => ({
+    type: 'Feature', properties: { slug: o.slug },
+    geometry: { type: 'Polygon', coordinates: rect(o.map.lon, o.map.lat, o.map.plot?.w ?? 60, o.map.plot?.d ?? 60) }
+  })));
+  const approxGJ = collection(OBJECTS.filter(o => shapeOf(o) === 'approx').map(o => ({
+    type: 'Feature', properties: { slug: o.slug },
+    geometry: { type: 'Polygon', coordinates: circle(o.map.lon, o.map.lat, o.map.approxRadius!) }
+  })));
+  const labelsGJ = collection(OBJECTS.map(o => ({
+    type: 'Feature', properties: { slug: o.slug, label: o.priceFrom ? `от ${o.priceFrom}` : o.name },
+    geometry: { type: 'Point', coordinates: [o.map.lon, o.map.lat] }
+  })));
 
   // landmarks: real-world anchor at NDK; Nevsky positioned as a meter offset from it (see meterOffsetFrom)
   const NDK_LONLAT: [number, number] = [23.3186, 42.6852];
@@ -355,53 +391,102 @@
     map.addImage('hatch', x.getImageData(0, 0, 16, 16), { pixelRatio: 1 });
 
     map.addLayer(landmarksLayer, 'listings-3d');
+    styleReady = true;
+    applyMapFilter();
   });
 
-  function popupHTML(l: any) {
-    return `<div class="pop-t">${l.title}</div>
-      <div class="pop-d">${l.price} &nbsp;·&nbsp; ${l.area}${l.note ? `<br><em>${l.note}</em>` : ''}</div>
-      <a class="pop-a" href="#" onclick="return false">Виж имота →</a>`;
+  function popupHTML(o: MapObject) {
+    return `${o.image ? `<img class="pop-img" src="${o.image}" alt="">` : ''}
+      <div class="pop-t">${o.name}</div>
+      <div class="pop-d">${o.neighborhood} &nbsp;·&nbsp; ${o.status}${o.priceFrom ? `<br>от <b>${o.priceFrom}</b>` : ''}
+        ${shapeOf(o) === 'approx' ? '<br><em>точният адрес — при контакт</em>' : ''}</div>
+      <a class="pop-a" href="${o.href}">Виж обекта →</a>`;
   }
   let popup: maplibregl.Popup | undefined;
-  function showListing(l: any, fly: boolean) {
-    if (fly) map.flyTo({ center: [l.lon, l.lat], ...l.view, duration: 1800, essential: true });
+  function showObject(o: MapObject, fly: boolean) {
+    if (fly) map.flyTo({ center: [o.map.lon, o.map.lat], ...o.map.view, duration: 1800, essential: true });
     if (popup) popup.remove();
     popup = new maplibregl.Popup({ offset: 14, maxWidth: '280px' })
-      .setLngLat([l.lon, l.lat]).setHTML(popupHTML(l)).addTo(map);
+      .setLngLat([o.map.lon, o.map.lat]).setHTML(popupHTML(o)).addTo(map);
   }
+  const bySlug = (slug: string) => OBJECTS.find(o => o.slug === slug);
 
   for (const layer of ['listings-3d', 'plot-fill', 'approx-fill']) {
     map.on('click', layer, e => {
-      const l = LISTINGS.find(x => x.id === e.features![0].properties!.id);
-      if (l) showListing(l, false);
+      const o = bySlug(e.features![0].properties!.slug);
+      if (o) showObject(o, false);
     });
     map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
     map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
   }
 
+  // --- filters: neighborhood / type (сграда, къща, апартамент, парцел) / room type (Planning.md §5). Price and m² filters wait for
+  // real per-suite prices in buildings.ts.
+  const fHood = document.getElementById('f-hood') as HTMLSelectElement;
+  const fType = document.getElementById('f-type') as HTMLSelectElement;
+  const fRooms = document.getElementById('f-rooms') as HTMLSelectElement;
+  const FILTERED_LAYERS = ['listings-3d', 'plot-fill', 'plot-line', 'approx-fill', 'approx-line', 'price-labels'];
+  let styleReady = false;
+  let visible: MapObject[] = OBJECTS;
+
+  const matches = (o: MapObject) =>
+    (!fHood.value || o.neighborhood === fHood.value) &&
+    (!fType.value || o.type === fType.value) &&
+    (!fRooms.value || o.rooms.includes(fRooms.value));
+
+  function applyMapFilter() {
+    if (!styleReady) return;   // runs again from the 'load' handler once the layers exist
+    const filter = ['in', ['get', 'slug'], ['literal', visible.map(o => o.slug)]];
+    for (const layer of FILTERED_LAYERS) map.setFilter(layer, filter as any);
+  }
 
   // sidebar cards
-  const kindTag: Record<string, string> = { exact: 'апартамент', plot: 'парцел', approx: 'апартамент · приблизително' };
-  document.getElementById('cards')!.innerHTML = LISTINGS.map(l => `
-    <div class="card" data-id="${l.id}">
-      <div class="t">${l.title}</div>
-      <div class="d"><span>${l.area}</span><b>${l.price}</b></div>
-      <span class="tag">${kindTag[l.kind]}</span>
-    </div>`).join('');
-  document.getElementById('cards-count')!.textContent = `(${LISTINGS.length})`;
+  const tagOf = (o: MapObject) => o.typeLabel + (shapeOf(o) === 'approx' ? ' · приблизително' : '');
+  const cardsEl = document.getElementById('cards')!;
+  function renderCards() {
+    cardsEl.innerHTML = visible.length ? visible.map(o => `
+      <div class="card" data-slug="${o.slug}">
+        <div class="t">${o.name}</div>
+        <div class="d"><span>${o.neighborhood}</span>${o.priceFrom ? `<b>от ${o.priceFrom}</b>` : ''}</div>
+        <span class="tag">${tagOf(o)}</span> <span class="tag">${o.status}</span>
+      </div>`).join('')
+      : '<p class="no-results">Няма обекти по тези критерии.</p>';
+    document.getElementById('cards-count')!.textContent = `(${visible.length})`;
+  }
+
+  function onFilterChange() {
+    visible = OBJECTS.filter(matches);
+    renderCards();
+    applyMapFilter();
+    if (popup) popup.remove();
+    // frame what's left: one object → its own camera, several → fit them all
+    if (visible.length === 1) {
+      const o = visible[0];
+      map.flyTo({ center: [o.map.lon, o.map.lat], ...o.map.view, duration: 1500, essential: true });
+    } else if (visible.length > 1) {
+      const bounds = new maplibregl.LngLatBounds();
+      for (const o of visible) bounds.extend([o.map.lon, o.map.lat]);
+      const desktop = window.matchMedia('(min-width: 721px)').matches;
+      map.fitBounds(bounds, { padding: desktop ? { top: 140, bottom: 80, left: 340, right: 80 } : 60,
+        maxZoom: 15, duration: 1500 });
+    }
+  }
+  for (const f of [fHood, fType, fRooms]) f.addEventListener('change', onFilterChange);
+  renderCards();
 
   // mobile bottom sheet: collapsed by default (see .map-wrap aside in <style> below), tap the
-  // "Имоти" handle to expand/collapse. Harmless on desktop — the .expanded class only affects
+  // "Обекти" handle to expand/collapse. Harmless on desktop — the .expanded class only affects
   // the mobile media query, and the sheet is always visible there anyway.
   const listingsSheet = document.getElementById('listings-sheet')!;
   document.getElementById('sheet-toggle')!.addEventListener('click', () => {
     listingsSheet.classList.toggle('expanded');
   });
 
-  document.getElementById('cards')!.addEventListener('click', e => {
+  cardsEl.addEventListener('click', e => {
     const card = (e.target as HTMLElement).closest('.card') as HTMLElement | null;
-    if (card) {
-      showListing(LISTINGS.find(l => l.id === +card.dataset.id!), true);
+    const o = card && bySlug(card.dataset.slug!);
+    if (o) {
+      showObject(o, true);
       listingsSheet.classList.remove('expanded');
     }
   });
@@ -450,6 +535,12 @@
   .map-wrap .card .t { font-size: 18px; font-weight: bold; }
   .map-wrap .card .d { font-size: 15px; color: #333; display: flex; justify-content: space-between; }
   .map-wrap .card .tag { display: inline-block; font-size: 12px; border: 1.5px solid var(--ink); padding: 0 6px; margin-top: 3px; background: var(--paper); }
+  .map-wrap .filters { display: grid; gap: 6px; margin-bottom: 10px; }
+  .map-wrap .filters select {
+    font-family: var(--font-body); font-size: 14px; color: var(--ink);
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 0; padding: 5px 8px;
+  }
+  .map-wrap .no-results { font-size: 14px; color: var(--dim); padding: 6px 0; }
 
   .map-wrap .legend {
     position: absolute; z-index: 20; right: 18px; bottom: 34px; padding: 10px 14px; font-size: 15px;
@@ -475,6 +566,7 @@
     padding: 10px 14px; min-width: 200px;
   }
   .maplibregl-popup-tip { border-top-color: var(--ink) !important; }
+  .pop-img { display: block; width: 100%; height: 110px; object-fit: cover; border: 2px solid var(--ink); margin-bottom: 6px; }
   .pop-t { font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 1.1; }
   .pop-d { font-size: 16px; margin: 4px 0; }
   .pop-a {
@@ -504,6 +596,7 @@
     .map-wrap aside h2 .chevron { display: inline-block; }
     .map-wrap aside.expanded h2 .chevron { transform: rotate(180deg); }
 
+    .map-wrap .filters { flex: none; margin-top: 8px; margin-bottom: 0; }
     .map-wrap #cards { flex: 1; overflow-y: auto; padding-top: 8px; }
 
     .map-wrap .legend { bottom: 64px; }

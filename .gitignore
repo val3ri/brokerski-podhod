@@ -25,3 +25,9 @@ dist/
 
 # Logs
 *.log
+
+# Client source material (1.3 GB, confidential) — never commit
+sonar-files/
+
+# Real prices — not public yet (see src/data/prices.example.ts)
+src/data/prices.local.ts
