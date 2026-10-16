@@ -92,7 +92,7 @@ Real prices are **not** in the repo. They live in `src/data/prices.local.ts`, wh
   - `schemes`: prices per payment scheme
 - When an apartment sells, change its `status` and push.
 
-**Floor plans from the architect's PDFs:** `scripts/clean-floor-plans.py` turns an ArchiCAD PDF into a buyer-friendly plan. It keeps the walls (in Sonar teal), doors, windows, stairs, bathrooms and furniture, and drops the dimensions, axes, hatching and technical text. It also writes the room names and m² to a `.rooms.json` next to the image, which the site shows as live text. It needs PyMuPDF (`pip install pymupdf`):
+**Floor plans from the architect's PDFs:** `scripts/clean-floor-plans.py` turns an ArchiCAD PDF into a buyer-friendly plan. It keeps the walls (in Sonar teal), doors, windows, stairs, bathrooms and furniture, and drops the dimensions, axes, hatching and technical text. It also writes the room names and m² to a `.rooms.json` next to the image, which the site shows as live text. It also exports `<name>-tech.png`, the architect's original drawing with all dimensions, cropped identically; set it as the floor's `technical` and the „План“ view shows it. It needs PyMuPDF (`pip install pymupdf`):
 
 ```bash
 python3 scripts/clean-floor-plans.py "sonar-files/архитектура сграда А =PDF/4 СГРАДА А РАЗПРЕДЕЛЕНИЕ КОТА +3.05.pdf" src/assets/sgrada-a/floor-2

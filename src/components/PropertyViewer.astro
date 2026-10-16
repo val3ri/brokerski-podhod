@@ -69,6 +69,7 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
       {floors.filter((f) => f.plan).map((f) => (
         <div class={`image-box plan-view${f.render ? ' has-render' : ''}`} data-floor={f.number} hidden style={`--ratio: ${f.plan!.width / f.plan!.height}`}>
           <Image class="floor-plan-img" src={f.plan!} alt={`План — ${f.label}`} width={1600} />
+          {f.technical && <Image class="floor-tech-img" src={f.technical} alt={`Технически план — ${f.label}`} width={2340} />}
           {f.render && <Image class="floor-render-img" src={f.render} alt={`Визуализация — ${f.label}`} width={1800} />}
           {f.units && (
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Апартаменти">
@@ -438,6 +439,9 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
 
   /* AI visualisation stacked exactly over the plan (same pixels); the switch picks one */
   .plan-view :global(.floor-render-img) { position: absolute; inset: 0; }
+  /* „План“ = the architect's drawing with every dimension (same pixels again) */
+  .plan-view :global(.floor-tech-img) { position: absolute; inset: 0; }
+  .viewer[data-plan-style='render'] .plan-view :global(.floor-tech-img) { display: none; }
   .viewer[data-plan-style='plan'] .plan-view :global(.floor-render-img),
   .viewer[data-plan-style='plan'] .render-note,
   .viewer[data-plan-style='plan'] .rooms { display: none; }

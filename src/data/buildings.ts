@@ -11,6 +11,9 @@ import aFloorG from '../assets/sgrada-a/floor-garage.png';
 import aFloor1 from '../assets/sgrada-a/floor-1.png';
 import aFloor2 from '../assets/sgrada-a/floor-2.png';
 import aFloor3 from '../assets/sgrada-a/floor-3.png';
+import aTech1 from '../assets/sgrada-a/floor-1-tech.png';
+import aTech2 from '../assets/sgrada-a/floor-2-tech.png';
+import aTech3 from '../assets/sgrada-a/floor-3-tech.png';
 import aRender1F from '../assets/sgrada-a/render-floor-1.jpg';
 import aRender2F from '../assets/sgrada-a/render-floor-2.jpg';
 import aRender3F from '../assets/sgrada-a/render-floor-3.jpg';
@@ -62,6 +65,8 @@ export interface Floor {
   label: string;                  // 'Етаж 1', 'Гараж'
   level?: string;                 // architect's кота, e.g. '+3.05'
   plan?: ImageMetadata;           // whole-floor plan, shown when the floor is picked
+  technical?: ImageMetadata;      // the architect's drawing with all dimensions, same crop as `plan`
+                                  // (scripts/clean-floor-plans.py → *-tech.png) — the „План“ view
   render?: ImageMetadata;         // illustrative (AI) visualisation of the plan, aligned to it
                                   // pixel-for-pixel (scripts/align-render.py) — same outlines apply
   facade?: [number, number][];    // this floor's outline on viewer.image (the 2D building)
@@ -172,7 +177,7 @@ export const buildings: Building[] = [
     floors: [
       { number: -1, label: 'Гараж', level: '−3.05', plan: aFloorG,
         facade: rect(0, 77, 11.5, 88) },
-      { number: 1, label: 'Етаж 1', level: '±0.00', plan: aFloor1, render: aRender1F, rooms: aRooms1,
+      { number: 1, label: 'Етаж 1', level: '±0.00', plan: aFloor1, technical: aTech1, render: aRender1F, rooms: aRooms1,
         facade: rect(11.5, 72.3, 88.6, 85.1),
         units: {
           m1: rect(9, 11.5, 22.4, 81.5),
@@ -181,7 +186,7 @@ export const buildings: Building[] = [
           m4: rect(60.2, 11.5, 73.5, 81.5),
           m5: rect(73.5, 11.5, 86.6, 81.5),
         } },
-      { number: 2, label: 'Етаж 2', level: '+3.05', plan: aFloor2, render: aRender2F, rooms: aRooms2,
+      { number: 2, label: 'Етаж 2', level: '+3.05', plan: aFloor2, technical: aTech2, render: aRender2F, rooms: aRooms2,
         facade: rect(3.8, 52.2, 96.8, 72.3),
         units: {
           m1: rect(2.6, 11.6, 22.9, 81.2),
@@ -190,7 +195,7 @@ export const buildings: Building[] = [
           m4: [[60.8,11.6],[73.9,11.6],[73.9,81.2],[60.8,81.2],[60.8,60],[49,60],[49,52],[60.8,52]],
           m5: rect(73.9, 11.6, 94.3, 81.2),
         } },
-      { number: 3, label: 'Етаж 3', level: '+6.10', plan: aFloor3, render: aRender3F, rooms: aRooms3,
+      { number: 3, label: 'Етаж 3', level: '+6.10', plan: aFloor3, technical: aTech3, render: aRender3F, rooms: aRooms3,
         facade: [[12.4,39],[87.1,39],[87.1,47.2],[96.5,47.2],[96.5,52.2],[4.2,52.2],[4.2,47.2],[12.4,47.2]],
         units: {
           a1: [[8.1,37],[22.6,37],[22.6,29.8],[35.2,29.8],[35.2,69],[8.1,69]],

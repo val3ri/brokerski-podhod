@@ -45,7 +45,7 @@ const crops = suite.floors.flatMap((n) => {
   return [{
     label: f.label,
     render: f.render,
-    plan: f.plan,
+    plan: f.technical ?? f.plan,
     ratio,
     layer: `width:${10000 / bw}%;height:${10000 / bh}%;left:${(-x0 / bw) * 100}%;top:${(-y0 / bh) * 100}%`,
     outline: poly.map(([x, y]) => at(x, y).join(',')).join(' '),
@@ -79,7 +79,7 @@ const crops = suite.floors.flatMap((n) => {
                   <figure style={`flex-grow:${c.ratio}`}>
                     <div class="crop" style={`aspect-ratio:${c.ratio}`}>
                       <div class="crop-layer" style={c.layer}>
-                        <Image class="crop-plan" src={c.plan} alt={`План — ${name}, ${c.label}`} width={1600} />
+                        <Image class="crop-plan" src={c.plan} alt={`План — ${name}, ${c.label}`} width={2340} />
                         <Image class="crop-render" src={c.render} alt={`Визуализация — ${name}, ${c.label}`} width={1800} />
                       </div>
                       <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

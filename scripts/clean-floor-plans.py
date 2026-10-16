@@ -10,6 +10,10 @@ to the image, so the site renders them as live text (translatable, crisp, Montse
 The crop is the same for every floor of a building, so outlines in src/data/buildings.ts
 (Floor.units, in % of the image) stay valid.
 
+Also writes <out>-tech.png: the architect's original drawing (all dimensions and notes) with the
+same crop and resolution, so it lines up with the clean plan, the render and the outlines — the
+viewer's „План“ view shows it.
+
 Usage (needs PyMuPDF: pip install pymupdf):
   python3 scripts/clean-floor-plans.py "<pdf>" <out-basename>
   e.g. python3 scripts/clean-floor-plans.py "sonar-files/архитектура сграда А =PDF/4 СГРАДА А РАЗПРЕДЕЛЕНИЕ КОТА +3.05.pdf" src/assets/sgrada-a/floor-2
@@ -121,6 +125,7 @@ def clean(pdf_path, out_base):
         })
 
     page.get_pixmap(dpi=DPI, clip=clip).save(f'{out_base}.png')
+    src.get_pixmap(dpi=DPI, clip=clip).save(f'{out_base}-tech.png')
     with open(f'{out_base}.rooms.json', 'w', encoding='utf-8') as f:
         json.dump(rooms, f, ensure_ascii=False, indent=1)
     print(f'{out_base}.png  ({len(rooms)} rooms)')
