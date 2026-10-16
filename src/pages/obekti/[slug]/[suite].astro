@@ -19,6 +19,40 @@ const sold = suite.status === 'sold';
 // opens the building viewer on this apartment's (first) floor with it selected
 const viewerHref = `${base}obekti/${building.slug}?floor=${suite.floors[0]}&unit=${suite.number}#viewer`;
 const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
+
+// the apartment cut out of the same floor visualisations the building viewer shows (CSS crop of
+// the full render, so no extra images): one crop per floor it occupies, neighbours faded out
+const inside = (x: number, y: number, poly: [number, number][]) => {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+};
+const crops = suite.floors.flatMap((n) => {
+  const f = building.floors?.find((x) => x.number === n);
+  const poly = f?.units?.[suite.number];
+  if (!f?.render || !f.plan || !poly) return [];
+  const pad = 2;
+  const xs = poly.map((q) => q[0]), ys = poly.map((q) => q[1]);
+  const x0 = Math.max(0, Math.min(...xs) - pad), x1 = Math.min(100, Math.max(...xs) + pad);
+  const y0 = Math.max(0, Math.min(...ys) - pad), y1 = Math.min(100, Math.max(...ys) + pad);
+  const bw = x1 - x0, bh = y1 - y0;
+  const ratio = (bw * f.plan.width) / (bh * f.plan.height);
+  // positions in % of the crop box
+  const at = (x: number, y: number) => [((x - x0) / bw) * 100, ((y - y0) / bh) * 100];
+  return [{
+    label: f.label,
+    render: f.render,
+    plan: f.plan,
+    ratio,
+    layer: `width:${10000 / bw}%;height:${10000 / bh}%;left:${(-x0 / bw) * 100}%;top:${(-y0 / bh) * 100}%`,
+    outline: poly.map(([x, y]) => at(x, y).join(',')).join(' '),
+    rooms: (f.rooms ?? []).filter((r) => inside(r.x, r.y, poly)).map((r) => ({ ...r, pos: at(r.x, r.y) })),
+  }];
+});
+
 ---
 
 <Layout title={`${name} — ${building.name} — Sonar Development Company`}>
@@ -28,10 +62,42 @@ const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
 
       <div class="grid">
         <div class="plan-col">
-          {suite.plan ? (
-            <div class="plan comic-box">
-              <Image src={suite.plan} alt={`Разпределение — ${name}`} width={1100} />
+          {crops.length > 0 && (
+            <div class="view-tabs" role="tablist" aria-label="Изглед">
+              <button type="button" role="tab" data-view="render" aria-selected="true">Визуализация</button>
+              <button type="button" role="tab" data-view="plan" aria-selected="false">План</button>
             </div>
+          )}
+          {crops.length > 0 ? (
+            <div class="plan comic-box crops" data-view="render">
+              <div class="zoom-ctrl" role="group" aria-label="Мащаб">
+                <button type="button" data-zoom="in" aria-label="Увеличи">+</button>
+                <button type="button" data-zoom="out" aria-label="Намали">−</button>
+              </div>
+              <div class="crop-frame"><div class="crop-row">
+                {crops.map((c) => (
+                  <figure style={`flex-grow:${c.ratio}`}>
+                    <div class="crop" style={`aspect-ratio:${c.ratio}`}>
+                      <div class="crop-layer" style={c.layer}>
+                        <Image class="crop-plan" src={c.plan} alt={`План — ${name}, ${c.label}`} width={1600} />
+                        <Image class="crop-render" src={c.render} alt={`Визуализация — ${name}, ${c.label}`} width={1800} />
+                      </div>
+                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="veil" fill-rule="evenodd" d={`M0,0H100V100H0Z M${c.outline.replaceAll(' ', ' L')}Z`} />
+                        <polygon class="edge" points={c.outline} />
+                      </svg>
+                      {c.rooms.map((r) => (
+                        <span class="room" style={`left:${r.pos[0]}%;top:${r.pos[1]}%`}><b>{r.name}</b>{r.area && <i>{r.area}</i>}</span>
+                      ))}
+                    </div>
+                    {crops.length > 1 && <figcaption>{c.label}</figcaption>}
+                  </figure>
+                ))}
+              </div></div>
+              <p class="render-note">Илюстративна визуализация</p>
+            </div>
+          ) : suite.plan ? (
+            <div class="plan comic-box"><Image src={suite.plan} alt={`Разпределение — ${name}`} width={1100} /></div>
           ) : (
             <div class="plan plan-placeholder comic-box"><span>разпределението предстои</span></div>
           )}
@@ -84,6 +150,19 @@ const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
   </section>
 </Layout>
 
+<script>
+  import { createLens } from '../../../scripts/lens';
+
+  const crops = document.querySelector<HTMLElement>('.crops');
+  if (crops) createLens(crops.querySelector('.crop-frame')!, crops.querySelector('.crop-row')!, crops.querySelector('.zoom-ctrl')!);
+
+  document.querySelectorAll<HTMLButtonElement>('.view-tabs button').forEach((b, _, all) =>
+    b.addEventListener('click', () => {
+      all.forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      document.querySelector<HTMLElement>('.crops')!.dataset.view = b.dataset.view;
+    }));
+</script>
+
 <style>
   .section { display: flex; justify-content: center; padding: 40px 20px 70px; }
   .page { width: min(1180px, 94vw); min-width: 0; display: flex; flex-direction: column; gap: 24px; }
@@ -95,6 +174,42 @@ const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
   .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 40px; align-items: start; }
   .plan { background: #fff; padding: 12px; }
   .plan :global(img) { display: block; width: 100%; height: auto; }
+  .plan[hidden] { display: none; }
+
+  .view-tabs { display: flex; margin-bottom: 10px; }
+  .view-tabs button {
+    font-family: var(--font-body); font-size: 14px; padding: 5px 14px; cursor: pointer;
+    color: var(--ink); background: var(--paper); border: 2px solid var(--ink);
+  }
+  .view-tabs button + button { border-left: 0; }
+  .view-tabs button[aria-selected='true'] { background: var(--ink); color: var(--paper); }
+
+  /* crops of the floor visualisation: one per floor, equal heights (flex-grow = aspect ratio) */
+  .crop-row { display: flex; gap: 14px; align-items: flex-start; }
+  .crop-row figure { flex-basis: 0; min-width: 0; margin: 0; }
+  .crop { position: relative; overflow: hidden; }
+  .crop-layer { position: absolute; }
+  .crop-layer :global(img) { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+  /* same frame for both views: the clean plan and the visualisation are aligned pixel for pixel */
+  .crops[data-view='plan'] :global(.crop-render), .crops[data-view='plan'] .render-note { visibility: hidden; }
+  .crops[data-view='plan'] .room { display: none; }   /* the plain plan stays label-free, like in the viewer */
+
+  .crops { position: relative; }
+  .crop-frame { overflow: hidden; }
+  .crop-row { transition: transform .3s ease; }
+  @media (prefers-reduced-motion: reduce) { .crop-row { transition: none; } }
+  .crops .zoom-ctrl { position: absolute; z-index: 2; top: 20px; right: 20px; }
+  .crop svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .crop .veil { fill: #fff; fill-opacity: .7; }
+  .crop .edge { fill: none; stroke: var(--sonar-teal); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .crop .room {
+    position: absolute; transform: translate(-50%, -50%); text-align: center; line-height: 1.15; white-space: nowrap;
+    color: #fff; text-shadow: 0 0 3px rgba(0, 0, 0, .85); font-size: 12px; pointer-events: none;
+  }
+  .crop .room b { display: block; font-weight: 500; text-transform: uppercase; letter-spacing: .03em; font-size: .85em; }
+  .crop .room i { font-style: normal; font-weight: 600; }
+  figcaption { text-align: center; font-size: 15px; font-weight: 500; margin-top: 6px; }
+  .render-note { font-size: 12px; color: var(--dim); text-align: right; margin-top: 6px; }
   .plan-placeholder { aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--dim); font-style: italic; }
 
   h1 { font-size: clamp(30px, 4vw, 42px); margin: 8px 0 12px; }
@@ -121,5 +236,7 @@ const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
 
   @media (max-width: 800px) {
     .grid { grid-template-columns: 1fr; gap: 24px; }
+    .crop .room { font-size: 9px; }
+    .crop-row { gap: 8px; }
   }
 </style>

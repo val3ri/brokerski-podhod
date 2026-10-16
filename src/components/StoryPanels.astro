@@ -4,7 +4,7 @@
 // CSS scroll-snap + IntersectionObserver — no animation library; respects prefers-reduced-motion.
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
-import type { Story } from '../data/stories';
+import { type Story, stories } from '../data/stories';
 
 interface Props { story: Story }
 const { story } = Astro.props;
@@ -16,6 +16,7 @@ const artFor = (n: number) =>
     const [dir, file] = path.split('/').slice(-2);
     return dir === story.slug && file.split('.')[0] === String(n);
   })?.[1].default;
+const other = stories.find((s) => s.slug !== story.slug)!;
 const WHO = { agent: 'Агентът', client: 'Клиентът', buyer: 'Купувачът' };
 ---
 
@@ -40,7 +41,7 @@ const WHO = { agent: 'Агентът', client: 'Клиентът', buyer: 'Ку�
           </div>
           {p.caption && <p class="caption">{p.caption}</p>}
           {p.bubbles?.map((b, k) => (
-            <p class={`bubble ${b.who}`} style={`left:${b.x}%;top:${b.y}%;--d:${k}`}>
+            <p class={`bubble ${b.who}${b.side ? ' tail-' + b.side : ''}`} style={`left:${b.x}%;top:${b.y}%;--d:${k};${b.w ? `max-width:${b.w}%;` : ''}--tail:${b.tail ?? (b.side ? 40 : b.who === 'agent' ? 85 : 15)}%`}>
               <span class="sr-only">{WHO[b.who]}: </span>{b.text}
             </p>
           ))}
@@ -59,9 +60,23 @@ const WHO = { agent: 'Агентът', client: 'Клиентът', buyer: 'Ку�
       </section>
     );
   })}
+
+  <nav class="story-end" aria-label="Накъде след историята">
+    <a class="end-link" href="#top" data-to-top>↑ Отначало</a>
+    <a class="end-link" href={`${base}istoria/${other.slug}`}>
+      <small>Другата история</small>{other.title} →
+    </a>
+    <a class="end-link" href={`${base}imoti`}><small>Просто разглеждам</small>Към имотите →</a>
+    <a class="end-link home" href={base}>← Начална страница</a>
+  </nav>
 </div>
 
 <script>
+  document.querySelector('[data-to-top]')?.addEventListener('click', e => {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+
   // pop the bubbles in as each panel scrolls into view (once)
   const panels = document.querySelectorAll<HTMLElement>('[data-panel]');
   if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
@@ -115,13 +130,17 @@ const WHO = { agent: 'Агентът', client: 'Клиентът', buyer: 'Ку�
     opacity: 0; transform: translateY(10px) scale(.96);
     transition: opacity .45s ease, transform .45s ease; transition-delay: calc(.35s + var(--d) * .6s);
   }
-  /* tail: agent's points up-left from the right side, client's down-left */
+  /* tail points down at the speaker; its position comes from each bubble's `tail` (stories.ts) */
   .bubble::after {
     content: ''; position: absolute; width: 18px; height: 18px; background: #fff;
-    border: 2.5px solid var(--ink); border-top: 0; border-left: 0; bottom: -11px; left: 28px; transform: rotate(45deg);
+    border: 2.5px solid var(--ink); border-top: 0; border-left: 0; bottom: -11px; left: calc(var(--tail) - 9px); transform: rotate(45deg);
   }
+  /* side: 'left' – tail sits on the bubble's left edge and points left (speaker stands beside, not below) */
+  .bubble.tail-left::after { bottom: auto; left: -11px; top: calc(var(--tail) - 9px); border-top: 2.5px solid var(--ink); border-left: 2.5px solid var(--ink); border-right: 0; border-bottom: 2.5px solid var(--ink); border-top: 0; }
+  .bubble.tail-right::after { bottom: auto; left: auto; right: -11px; top: calc(var(--tail) - 9px); border: 2.5px solid var(--ink); border-left: 0; border-bottom: 0; }
+  .bubble.agent.tail-right::after, .bubble.agent.tail-left::after { border-color: var(--sonar-teal); }
   .bubble.agent { border-color: var(--sonar-teal); }
-  .bubble.agent::after { border-color: var(--sonar-teal); left: auto; right: 28px; }
+  .bubble.agent::after { border-color: var(--sonar-teal); }
   .panel.in .bubble { opacity: 1; transform: none; }
 
   .cta-box {
@@ -134,6 +153,19 @@ const WHO = { agent: 'Агентът', client: 'Клиентът', buyer: 'Ку�
   .cta .caption { font-size: clamp(18px, 2.4vw, 30px); }
 
   .counter { position: absolute; right: max(4vw, calc(50% - 550px)); bottom: 10px; font-size: 13px; color: var(--dim); }
+  .story-end {
+    width: min(1100px, 92vw); margin: 10px auto 70px; display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); scroll-snap-align: end;
+  }
+  .end-link {
+    display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 76px;
+    padding: 14px 18px; background: var(--paper); color: var(--ink); text-decoration: none;
+    border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); font-size: 18px; font-weight: 500;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .end-link small { font-size: 13px; font-weight: 400; color: var(--dim); }
+  .end-link:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+  .end-link.home { background: var(--sonar-teal); color: #fff; border-color: var(--ink); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
   @media (prefers-reduced-motion: reduce) { .bubble { transition: none; } }

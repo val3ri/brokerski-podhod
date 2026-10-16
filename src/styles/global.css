@@ -117,3 +117,17 @@ ul {
   transform: translate(-2px, -2px);
   box-shadow: 5px 5px 0 var(--dim);
 }
+
+/* magnifier (+ / −) — src/scripts/lens.ts; position it in the component */
+.zoom-ctrl { display: flex; flex-direction: column; box-shadow: 3px 3px 0 var(--ink); }
+.zoom-ctrl[hidden] { display: none; }
+.zoom-ctrl button {
+  width: 36px; height: 36px; font-size: 22px; line-height: 1; font-family: var(--font-body);
+  color: var(--ink); background: var(--paper); border: 2px solid var(--ink); cursor: pointer;
+}
+.zoom-ctrl button + button { border-top: 0; }
+.zoom-ctrl button:hover:not(:disabled) { background: var(--paper2); }
+.zoom-ctrl button:disabled { color: #bbb; cursor: default; }
+.lensed { cursor: grab; touch-action: none; }
+.lensed.dragging { cursor: grabbing; transition: none !important; }
+.lensed { user-select: none; }

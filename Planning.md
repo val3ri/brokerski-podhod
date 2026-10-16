@@ -8,6 +8,7 @@ Real estate agency operating in Sofia, Bulgaria. Residential properties (apartme
 > - **Colors:** page background `#faf9f7` (warm near-white) replaces `#eae5d9`; `--paper2: #f2eee3` for alternating sections. The maps still use `#eae5d9` for their paper — to be reconciled.
 > - **Fonts:** serif, but *not* handwritten. Currently Montserrat as a placeholder (sans). MADE Tommy was considered — **not free for commercial use** (paid MADEType licence needed). Open decision, see §9.
 > - **Comics:** business-oriented, corporate style — *not* childish/indie. Reference: the client's Instagram photos (not stored in the repo).
+> - **Comics are now in muted colour (Oct 2026), not monochrome:** premium corporate editorial illustration with clean ink line art and flat muted fills (cream, beige, light grey, light oak) plus one deep teal-green accent `#013638`. Prompts: `sonar-files/ai-renders/ISTORII-PROMPTS.md`. Artwork is AI-generated (Gemini, 4:3 cropped to 3:2) and saved in `src/assets/istoria/`. Supersedes the "strictly monochrome" rules below.
 > - **Map:** keep the graphite/ink style; add important orientation buildings (NDK, Nevsky done; more to come).
 > - **Inspiration:** https://hristoshomov.com/keysoff
 
@@ -56,9 +57,9 @@ The comic doesn't just decorate the site — it *is* the pitch. Slides 1–4 of 
 
 ## 4. Art Direction
 
-- **Style:** black and white comic book art, clean ink line art — **business-oriented, corporate tone** (client feedback, Sep 2026; originally "indie graphic novel").
+- **Style:** clean ink line art with flat muted colour fills and a teal accent — **business-oriented, corporate tone** (client feedback, Sep 2026; originally black-and-white "indie graphic novel"; colour decided Oct 2026).
 - **Background:** warm near-white `#faf9f7` with paper grain (originally cream `#eae5d9`). Never pure white.
-- **Palette:** strictly monochrome, high-contrast black ink, no colored elements; subtle ink washes for shadows.
+- **Palette:** warm neutrals (cream, beige, light grey, light oak) + one deep teal-green accent `#013638`; no other saturated colours. (Originally strictly monochrome.)
 - **Aesthetics:** hand-drawn look, expressive characters, dynamic panels with bold black borders.
 - **Bubble space:** illustrations must have clear areas designed for speech bubbles and caption boxes without cluttering the action.
 
@@ -120,7 +121,7 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 - Maximum two wash colors: sage green (parks), pale gray-blue (water), both desaturated toward the paper tone.
 - Never color roads or buildings.
 - **Black is reserved for listings** — nothing on the map may be darker than a property for sale.
-- The comic presentations stay **strictly monochrome** — no color in the brand statement.
+- The comic presentations were originally meant to stay monochrome; since Oct 2026 they use the muted corporate palette above. The map's two-wash rule is unchanged.
 
 ### Building viewer on the property page (implemented Sep 2026)
 "Виж обекта" opens `/obekti/<slug>`: **viewer on top, information below**. Flow: orbit the building → click a floor (or the lift-style floor panel) → floors above disappear, apartments on that floor appear colored by status → click an apartment (3D or its chip) → details card + link to `/obekti/<slug>/<n>`. The page's apartments table highlights in sync, and state is in the URL (`?floor=3&unit=5`, used by the apartment page's "Виж го в сградата" link).
@@ -130,6 +131,7 @@ Decision after live comparison (toggle in the demo): the properties map uses **h
 - **Libraries:** three.js (`GLTFLoader`, `OrbitControls`) — already a dependency, loaded via dynamic import only on pages with 3D. Rejected `<model-viewer>`: great for single-object viewing, awkward for per-floor isolation and per-apartment picking.
 - The placeholder demo buildings (Обект 1–4) were removed once Сграда А was in; the 3D code path (procedural / `.glb`) stays, unused until a real model arrives.
 - **First real building — Sonar Residence, Сграда А (Oct 2026), 2D only:** façade render (catalogue p.9) → click a floor → the architect's floor plan for that кота (−3.05 garage from the catalogue, ±0.00 / +3.05 / +6.10 from the РАЗПРЕДЕЛЕНИЕ PDFs, title block cropped off) with each apartment outlined and status-colored → apartment page with the catalogue plan, areas and the price table per payment scheme. Data model: explicit `floors` per building (`number`, `label`, `level`, `plan`, `facade` outline, `units` outlines); suites have `floors: number[]` so maisonettes span two floors. Source material lives in `sonar-files/` (gitignored, confidential).
+- **One visual language from building to apartment (Oct 2026):** the apartment page leads with the same AI floor visualisation as the building viewer, cropped to the apartment in CSS (one crop per floor it occupies, neighbours faded, live room labels); the catalogue plan stays one click away under „План с размери“. In the viewer the picked apartment's facts + „Разпределение и цени →“ sit in a strip inside the stage (no longer a card below, out of sight); the plain „План“ view shows no room labels; +/− magnifier (1.5×, 2×) with drag.
 - Later: floor plan images per apartment (in the floor view and on the apartment page), and showing the real model on the city map (tier 3 above).
 
 ### Practical constraints

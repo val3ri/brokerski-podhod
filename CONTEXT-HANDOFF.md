@@ -54,7 +54,7 @@ brokerski_podhod/
 5. **Map = real 3D map, ink-styled (not illustrated isometric).** Rejected a fully drawn city map (can't scale, artwork changes with listings). Listing emphasis via **height** (tall black extrusions), not width (would distort streets). Illustrated isometric maps kept only for future neighborhood-guide pages.
 6. **Building fidelity — three levels** (all proven feasible, level 1–2 demoed): (a) real footprint traced from OSM/blueprint/кадастрална скица — standard for exact-address listings; (b) floor-by-floor extrusion parts for off-plan developments (available floors black, sold pale); (c) glTF/GLB architect models via MapLibre custom layer + three.js, toon/ink-shaded, stripped & compressed to 1–5 MB — reserved for showcase projects. Georeferencing caveat: blueprints are in local coords (БГС 2005 convertible).
 7. **Address privacy flag per listing:** exact black building vs. dotted ink circle "точният адрес — при контакт" (private sellers).
-8. **Color decision — "hand-tinted ink":** user asked about realistic colors (green parks etc.). Agreed on a middle ground after a live A/B toggle in the demo: muted sage wash for parks + pale gray-blue for water, on the properties map only. **Hard rules:** max two wash colors, desaturated toward paper tone; never color roads/buildings; **black is reserved for listings — nothing may be darker than a property for sale**; comics stay strictly monochrome.
+8. **Color decision — "hand-tinted ink":** user asked about realistic colors (green parks etc.). Agreed on a middle ground after a live A/B toggle in the demo: muted sage wash for parks + pale gray-blue for water, on the properties map only. **Hard rules:** max two wash colors, desaturated toward paper tone; never color roads/buildings; **black is reserved for listings — nothing may be darker than a property for sale**; comics were monochrome until Oct 2026, now muted corporate colour (see Planning.md).
 9. **Contact CTA:** phone + **Viber** (dominant in Bulgaria) + short form — not just "call us".
 10. **Tech stack:** Astro (static-first, SEO), GSAP ScrollTrigger for scrollytelling (CSS scroll-snap acceptable for v1), MapLibre GL + **OpenFreeMap** vector tiles (free, no API key), listings as content collections first / headless CMS later. Mobile: comics degrade to snap panels, map falls back to flat ink pins; respect `prefers-reduced-motion`.
 
@@ -95,6 +95,6 @@ Full list in Planning.md §9. Headlines:
 
 - Page `#faf9f7` (paper2 `#f2eee3` for alternating sections), ink `#2c2b28`; never pure white; grain texture everywhere. Maps still use `#eae5d9` paper.
 - Comic boxes: solid ink border + offset ink shadow. Fonts via CSS variables, must be Cyrillic-safe.
-- Comics strictly monochrome; map may use the two approved washes only.
+- Comics: muted corporate colour with one teal accent (Oct 2026); map may use the two approved washes only.
 - Black on the map is reserved for properties for sale.
 - One visual world across the whole site — the main site must not feel generic after the comic intro.

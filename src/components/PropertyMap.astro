@@ -403,11 +403,51 @@ const types = [...new Set(objects.map((o) => o.type))];
       <a class="pop-a" href="${o.href}">Виж обекта →</a>`;
   }
   let popup: maplibregl.Popup | undefined;
+  const wrap = document.querySelector<HTMLElement>('.map-wrap')!;
   function showObject(o: MapObject, fly: boolean) {
-    if (fly) map.flyTo({ center: [o.map.lon, o.map.lat], ...o.map.view, duration: 1800, essential: true });
     if (popup) popup.remove();
-    popup = new maplibregl.Popup({ offset: 14, maxWidth: '280px' })
-      .setLngLat([o.map.lon, o.map.lat]).setHTML(popupHTML(o)).addTo(map);
+    const lngLat: [number, number] = [o.map.lon, o.map.lat];
+    popup = new maplibregl.Popup({ offset: 14, maxWidth: '280px', anchor: 'bottom' })
+      .setLngLat(lngLat).setHTML(popupHTML(o)).addTo(map);
+    const p = popup;
+    wrap.classList.add('has-popup');
+    p.on('close', () => { if (popup === p) wrap.classList.remove('has-popup'); });
+
+    // the title box and the list panel float over the map, and the popup grows upwards from the
+    // building — so the building can't simply be centred. Work out where it has to sit for its
+    // popup to land in the clear area, and move the camera there in one go.
+    const { offset, fits } = placement(p.getElement());
+    if (fly) map.flyTo({ center: lngLat, ...o.map.view, offset, duration: 1800, essential: true });
+    else if (!fits) map.easeTo({ center: lngLat, offset, duration: 600 });
+  }
+
+  // the part of the map not covered by the title box / list panel (phone: the bottom sheet)
+  function freeArea() {
+    const gap = 12;
+    const area = map.getContainer().getBoundingClientRect();
+    const header = document.querySelector('.map-wrap header')!.getBoundingClientRect();
+    const aside = document.getElementById('listings-sheet')!.getBoundingClientRect();
+    const desktop = matchMedia('(min-width: 721px)').matches;
+    return {
+      area,
+      top: header.bottom + gap,
+      bottom: (desktop ? area.bottom : aside.top) - gap,
+      left: (desktop ? aside.right : area.left) + gap,
+      right: area.right - gap,
+    };
+  }
+
+  // camera offset that puts the building where its popup fits in the free area: centred
+  // horizontally, popup just under the title with some room below it for the building itself
+  function placement(el: HTMLElement) {
+    const f = freeArea();
+    const box = el.getBoundingClientRect();
+    const h = box.height + 14;
+    const x = (f.left + f.right) / 2;
+    const y = f.top + h + Math.max(0, (f.bottom - f.top - h) / 3);
+    const fits = box.top >= f.top && box.bottom <= f.bottom && box.left >= f.left && box.right <= f.right;
+    const offset: [number, number] = [x - (f.area.left + f.area.width / 2), y - (f.area.top + f.area.height / 2)];
+    return { offset, fits };
   }
   const bySlug = (slug: string) => OBJECTS.find(o => o.slug === slug);
 
@@ -511,7 +551,7 @@ const types = [...new Set(objects.map((o) => o.type))];
 
   .map-wrap header.comic-box {
     position: absolute; z-index: 20; top: 18px; left: 50%; transform: translateX(-50%);
-    padding: 8px 22px 6px; text-align: center; max-width: min(92vw, 640px);
+    padding: 8px 22px 6px; text-align: center; width: max-content; max-width: min(92vw, 640px);
   }
   .map-wrap header h1 { font-family: var(--font-display); font-size: 30px; letter-spacing: 1px; color: var(--ink); line-height: 1; }
   .map-wrap header p { font-size: 15px; color: var(--dim); }
@@ -600,6 +640,7 @@ const types = [...new Set(objects.map((o) => o.type))];
     .map-wrap #cards { flex: 1; overflow-y: auto; padding-top: 8px; }
 
     .map-wrap .legend { bottom: 64px; }
+    .map-wrap.has-popup .legend { display: none; }   /* no room for both on a phone */
     .map-wrap .hint { display: none; }
   }
 </style>

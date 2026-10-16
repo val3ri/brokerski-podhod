@@ -88,7 +88,8 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
           )}
           {f.units && Object.entries(f.units).map(([unit, outline]) => (
             <span class={`unit-tag ${statusOf[unit] ?? 'sold'}`} style={tagPos(outline)}>
-              {nameOf[unit] ?? unit}
+              <span class="tag-long">{nameOf[unit] ?? unit}</span>
+              <span class="tag-short">{(nameOf[unit] ?? unit).split(' ').pop()}</span>
             </span>
           ))}
           {f.render && <span class="render-note">Илюстративна визуализация</span>}
@@ -104,6 +105,10 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
       <button type="button" data-style="plan">План</button>
     </div>
     <p class="plan-label" hidden></p>
+    <div class="zoom-ctrl" role="group" aria-label="Мащаб" hidden>
+      <button type="button" data-zoom="in" aria-label="Увеличи">+</button>
+      <button type="button" data-zoom="out" aria-label="Намали">−</button>
+    </div>
     {has3D && facadeImage && (
       <div class="mode-toggle" role="group" aria-label="Изглед">
         <button type="button" data-mode="3d">3D</button>
@@ -116,6 +121,7 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
       <span><i class="sw sold"></i>продаден</span>
     </div>
     <p class="stage-hint">изберете етаж</p>
+    <div class="unit-bar" hidden></div>
   </div>
 
   {floors.length > 0 && (
@@ -134,11 +140,12 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
     <h3 class="floor-title"></h3>
     <div class="units"></div>
     <a class="plan-link" target="_blank" rel="noopener" hidden>План на етажа ↗</a>
-    <div class="unit-card" hidden></div>
   </div>
 </div>
 
 <script>
+  import { createLens } from '../scripts/lens';
+
   type Suite = { number: string; name: string; type: string; size: string; floors: number[]; floorsText: string;
     status: 'available' | 'reserved' | 'sold'; statusLabel: string; price?: string; href: string };
   type FloorInfo = { number: number; label: string; level?: string; hasPlan: boolean; planSrc?: string };
@@ -153,11 +160,14 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
     const $ = <T extends Element = HTMLElement>(sel: string) => root.querySelector<T>(sel);
     const $$ = <T extends Element = HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
     const stage3d = $('.stage-3d');
-    const tooltip = $('.tooltip')!, panel = $('.floor-panel')!, card = $('.unit-card')!;
+    const tooltip = $('.tooltip')!, panel = $('.floor-panel')!, card = $('.unit-bar')!;
     const hint = $('.stage-hint')!, back = $('.plan-back')!, planLabel = $('.plan-label')!, planLink = $<HTMLAnchorElement>('.plan-link')!;
     const facadeView = $('.facade-view');
     const planViews = $$('.plan-view');
-    const zoomOut = $('.zoom-out')!, planStyle = $('.plan-style')!;
+    const zoomOut = $('.zoom-out')!, planStyle = $('.plan-style')!, zoomCtrl = $('.zoom-ctrl')!;
+    const stageImage = $('.stage-image')!;
+    // magnifier so the small labels can be read (src/scripts/lens.ts)
+    const lens = createLens(stageImage.parentElement!, stageImage, zoomCtrl, () => showTooltip(null, 0, 0));
     const floorBtns = $$<HTMLButtonElement>('.floor-btn');
     const floorShapes = $$<SVGPolygonElement>('.floor-shape');
     const unitShapes = $$<SVGPolygonElement>('.unit-shape');
@@ -185,9 +195,26 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
       planLabel.hidden = !planned;
       const view = planned ? planViews.find(v => +v.dataset.floor! === state.floor) : undefined;
       planStyle.hidden = !view?.classList.contains('has-render');
+      zoomCtrl.hidden = !planned;
+      lens.reset();
       zoomTo(view);
       if (planned) planLabel.textContent = floorTitle(state.floor!);
       root.classList.toggle('plan-open', planned);
+    }
+
+    // after picking an apartment, the zoomed floor is what matters: make sure the whole stage is on
+    // screen (just under the sticky header) instead of scrolling down to the card, which used to
+    // push the zoomed apartment partly out of view. The card sits right below the stage.
+    function revealStage() {
+      const header = document.querySelector('.site-header')?.getBoundingClientRect().height ?? 0;
+      const r = stageEl.getBoundingClientRect();
+      const fits = r.top >= header && r.bottom <= window.innerHeight;
+      if (!fits) {
+        window.scrollTo({
+          top: window.scrollY + r.top - header - 12,
+          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        });
+      }
     }
 
     function set(floor: number | null, unit: string | null = null, opts: { scroll?: boolean } = {}) {
@@ -219,19 +246,20 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
         if (info?.planSrc) planLink.href = info.planSrc;
       }
 
+      // the picked apartment's facts + link to its page, inside the stage right under the zoomed
+      // view (it used to be a card below the floor buttons, out of sight)
       const s = suite(unit);
       card.hidden = !s;
+      root.classList.toggle('has-unit', !!s);
       if (s) {
+        const price = s.status === 'sold' ? '' : ` · <b>${s.price ? `от ${s.price}` : 'цена при запитване'}</b>`;
         card.innerHTML = `
-          <div class="uc-head"><b>${s.name}</b><span class="uc-status ${s.status}">${s.statusLabel}</span></div>
-          <div class="uc-grid">
-            <span>Тип</span><b>${s.type}</b>
-            <span>Площ</span><b>${s.size}</b>
-            <span>${s.floors.length > 1 ? 'Етажи' : 'Етаж'}</span><b>${s.floorsText}</b>
-            <span>Цена</span><b>${s.status === 'sold' ? '—' : s.price ? `от ${s.price}` : 'при запитване'}</b>
+          <div class="ub-text">
+            <div class="ub-head"><b>${s.name}</b><span class="uc-status ${s.status}">${s.statusLabel}</span></div>
+            <div class="ub-facts">${s.type} · ${s.size} · ${s.floors.length > 1 ? 'етажи' : 'етаж'} ${s.floorsText}${price}</div>
           </div>
           <a class="btn" href="${s.href}">Разпределение и цени →</a>`;
-        if (opts.scroll) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (opts.scroll) revealStage();
       }
 
       // shareable state: /obekti/sgrada-a?floor=2&unit=m4
@@ -258,9 +286,10 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
       const p = shape.getAttribute('points')!.trim().split(/\s+/).map(xy => xy.split(',').map(Number));
       const xs = p.map(q => q[0]), ys = p.map(q => q[1]);
       const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-      const s = Math.min(3.2, 80 / (x1 - x0), 80 / (y1 - y0));
+      // a bit less height and centred slightly higher: the info strip sits along the bottom
+      const s = Math.min(3.2, 80 / (x1 - x0), 72 / (y1 - y0));
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      view.style.transform = `translate(${50 - cx * s}%, ${50 - cy * s}%) scale(${s})`;
+      view.style.transform = `translate(${50 - cx * s}%, ${44 - cy * s}%) scale(${s})`;
     }
 
     planStyle.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
@@ -395,7 +424,13 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
   }
   .unit-tag.sold { background: #8f8a7a; }
   .unit-tag.reserved { background: #6f6b60; }
-  @container (max-width: 520px) { .room { display: none; } }
+  .tag-short { display: none; }
+  @container (max-width: 520px) {
+    .room { display: none; }
+    /* phones: tags shrink to the number so neighbouring apartments don't overlap */
+    .tag-long { display: none; }
+    .tag-short { display: inline; }
+  }
 
   /* zoom onto an apartment */
   .plan-view { transform-origin: 0 0; transition: transform .6s cubic-bezier(.4, 0, .2, 1); }
@@ -404,7 +439,8 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
   /* AI visualisation stacked exactly over the plan (same pixels); the switch picks one */
   .plan-view :global(.floor-render-img) { position: absolute; inset: 0; }
   .viewer[data-plan-style='plan'] .plan-view :global(.floor-render-img),
-  .viewer[data-plan-style='plan'] .render-note { display: none; }
+  .viewer[data-plan-style='plan'] .render-note,
+  .viewer[data-plan-style='plan'] .rooms { display: none; }
   .viewer[data-plan-style='render'] .has-render .room { color: #fff; text-shadow: 0 0 3px rgba(0, 0, 0, .8); }
   .viewer[data-plan-style='render'] .has-render .unit-shape:not(.active):not(:hover) { fill-opacity: 0; }
   /* on the render, sold apartments fade out under a white wash instead of the grey tint */
@@ -419,7 +455,13 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
   .plan-style button { padding: 4px 12px; font-size: 13px; }
   .plan-style button + button { border-left: 0; }
   .plan-style button.active { background: var(--ink); color: var(--paper); }
-  .zoom-out[hidden], .plan-style[hidden] { display: none; }
+  .zoom-out[hidden], .plan-style[hidden], .zoom-ctrl[hidden] { display: none; }
+
+  /* magnifier (+ / −) — shared look in global.css */
+  .stage-image { transition: transform .3s ease; }
+  @media (prefers-reduced-motion: reduce) { .stage-image { transition: none; } }
+  .stage-image.dragging polygon { cursor: grabbing; }
+  .zoom-ctrl { position: absolute; z-index: 2; top: 56px; right: 12px; }
 
   .tooltip {
     position: absolute; z-index: 3; pointer-events: none; transform: translate(12px, -130%);
@@ -480,16 +522,20 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
   .viewer :global(.unit-chip.active) { background: var(--accent); color: var(--paper); }
   .viewer :global(.unit-chip.active small) { color: var(--paper); }
 
-  .unit-card {
-    margin-top: 14px; max-width: 460px; padding: 16px 18px; background: var(--paper);
-    border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink);
+  /* picked apartment: info strip at the bottom of the stage (replaces the legend there) */
+  .unit-bar {
+    position: absolute; z-index: 2; left: 12px; bottom: 10px; max-width: calc(100% - 250px);
+    display: flex; align-items: center; gap: 16px; padding: 6px 8px 6px 12px;
+    background: var(--paper); border: 2.5px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
   }
-  .unit-card[hidden] { display: none; }
-  .viewer :global(.uc-head) { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 20px; margin-bottom: 10px; }
-  .viewer :global(.uc-status) { font-size: 13px; border: 1.5px solid var(--ink); padding: 1px 8px; }
+  .unit-bar[hidden], .has-unit .legend { display: none; }
+  .viewer :global(.ub-text) { min-width: 0; }
+  .viewer :global(.ub-head) { display: flex; align-items: center; gap: 10px; font-size: 16px; line-height: 1.2; }
+  .viewer :global(.ub-facts) { font-size: 13px; color: var(--dim); }
+  .viewer :global(.ub-facts b) { color: var(--ink); }
+  .viewer :global(.unit-bar .btn) { white-space: nowrap; flex: none; font-size: 15px; padding: 7px 14px; }
+  .viewer :global(.uc-status) { font-size: 12px; border: 1.5px solid var(--ink); padding: 0 7px; }
   .viewer :global(.uc-status.available) { background: var(--ink); color: var(--paper); }
-  .viewer :global(.uc-grid) { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-bottom: 14px; font-size: 16px; }
-  .viewer :global(.uc-grid span) { color: var(--dim); }
 
   @media (max-width: 720px) {
     .viewer { grid-template-columns: 1fr; --stage-h: 60vh; }
@@ -498,5 +544,16 @@ const hasUnits = (f: number) => building.suites.some((s) => s.floors.includes(f)
     .floor-btn.whole { min-width: 84px; }
     .stage-hint { display: none; }
     .plan-label { top: auto; bottom: 44px; right: 8px; font-size: 13px; }
+    /* phones: the bottom edge only has room for the legend — the style switch goes to the top
+       right (magnifier under it) and the floor name sits just above the legend */
+    .plan-style { top: 12px; bottom: auto; right: 8px; }
+    .plan-style button { padding: 4px 9px; font-size: 12px; }
+    .zoom-ctrl { top: 50px; right: 8px; }
+    .legend { left: 8px; right: 8px; bottom: 8px; gap: 10px; font-size: 12px; justify-content: center; }
+    .plan-label { bottom: 44px; right: 8px; }
+    .zoom-out, .plan-back { font-size: 13px; padding: 4px 10px; left: 8px; }
+    .unit-bar { left: 8px; right: 8px; bottom: 8px; max-width: none; flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+    .viewer :global(.unit-bar .btn) { width: 100%; text-align: center; }
+    .has-unit .plan-label { display: none; }
   }
 </style>
